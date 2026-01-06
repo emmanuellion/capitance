@@ -1,0 +1,11 @@
+.idea/
+.claude/
+
+.env
+
+back/node_modules/
+back/dist/
+back/uploads/
+
+front/node_modules/
+front/.next/
