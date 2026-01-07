@@ -10,6 +10,11 @@ export interface Upload {
     mimetype: string;
     uploadedAt: Date;
     filePath: string;
+    // New fields for snapshot system
+    formatType?: string;
+    formatDetectionConfidence?: number;
+    snapshotDate?: Date;
+    processingStatus?: 'pending' | 'processed' | 'failed';
 }
 
 export function getUploadsCollection(): Collection<Upload> {
@@ -37,4 +42,18 @@ export async function deleteUploadByFilename(userId: string, filename: string): 
 export async function getUploadByFilename(userId: string, filename: string): Promise<Upload | null> {
     const collection = getUploadsCollection();
     return collection.findOne({ userId, filename });
+}
+
+export async function updateUpload(uploadId: ObjectId, updates: Partial<Upload>): Promise<boolean> {
+    const collection = getUploadsCollection();
+    const result = await collection.updateOne(
+        { _id: uploadId },
+        { $set: updates }
+    );
+    return result.modifiedCount === 1;
+}
+
+export async function getUploadById(uploadId: string): Promise<Upload | null> {
+    const collection = getUploadsCollection();
+    return collection.findOne({ _id: new ObjectId(uploadId) });
 }

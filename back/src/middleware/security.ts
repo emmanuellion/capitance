@@ -42,7 +42,7 @@ export const generalLimiter = rateLimit({
 // Rate Limiter strict pour les routes sensibles (auth, etc.)
 export const strictLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 100, // Max 5 requêtes par fenêtre
+    limit: 5, // Max 5 requêtes par fenêtre
     message: 'Trop de tentatives, veuillez réessayer plus tard',
     standardHeaders: true,
     legacyHeaders: false,

@@ -11,8 +11,8 @@ if (!fs.existsSync(uploadDir)) {
 // Configuration du stockage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        // Créer un dossier par utilisateur basé sur l'id dans le body
-        const userId = (req as any).body?.id || 'default';
+        // Créer un dossier par utilisateur basé sur l'user authentifié
+        const userId = (req as any).user?.userId || 'default';
         const userDir = path.join(uploadDir, userId);
 
         if (!fs.existsSync(userDir)) {

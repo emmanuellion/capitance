@@ -2,6 +2,7 @@
 .claude/
 
 .env
+*.csv
 
 back/node_modules/
 back/dist/
