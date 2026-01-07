@@ -3,6 +3,7 @@ import config from './config/config.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { helmetConfig, corsConfig, generalLimiter } from './middleware/security.js';
 import router from './routes/index.js';
+import { connectToDatabase } from './config/database.js';
 
 const app: Express = express();
 
@@ -29,8 +30,18 @@ app.get('/health', (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(config.port, () => {
-    console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
-});
+async function startServer() {
+    try {
+        await connectToDatabase();
+        app.listen(config.port, () => {
+            console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+startServer();
 
 export default app;

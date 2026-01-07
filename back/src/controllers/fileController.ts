@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { createUpload, getUploadsByUserId, deleteUploadByFilename } from '../models/Upload.js';
 
 export const getFile = async (
     req: Request,
@@ -18,33 +19,17 @@ export const getFile = async (
             return;
         }
 
-        // Construire le chemin du dossier utilisateur
-        const uploadDir = path.join(process.cwd(), 'uploads');
-        const userDir = path.join(uploadDir, id);
+        // Retrieve all uploads for this user from MongoDB
+        const uploads = await getUploadsByUserId(id);
 
-        // Vérifier si le dossier utilisateur existe
-        if (!fs.existsSync(userDir)) {
-            res.status(200).json({
-                success: true,
-                data: [],
-                message: 'Aucun fichier trouvé pour cet utilisateur',
-            });
-            return;
-        }
-
-        // Lire tous les fichiers du dossier utilisateur
-        const files = fs.readdirSync(userDir);
-        const filesInfo = files.map((filename) => {
-            const filePath = path.join(userDir, filename);
-            const stats = fs.statSync(filePath);
-
-            return {
-                filename,
-                size: stats.size,
-                createdAt: stats.birthtime,
-                modifiedAt: stats.mtime,
-            };
-        });
+        const filesInfo = uploads.map((upload) => ({
+            _id: upload._id?.toString(),
+            filename: upload.filename,
+            originalName: upload.originalName,
+            size: upload.size,
+            mimetype: upload.mimetype,
+            uploadedAt: upload.uploadedAt,
+        }));
 
         res.status(200).json({
             success: true,
@@ -61,7 +46,7 @@ export const addFile = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { id } = req.params;
+        const { id } = req.body;
 
         if (!req.file) {
             res.status(400).json({
@@ -79,8 +64,20 @@ export const addFile = async (
             return;
         }
 
+        // Save to MongoDB
+        const uploadId = await createUpload({
+            userId: id,
+            originalName: req.file.originalname,
+            filename: req.file.filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            uploadedAt: new Date(),
+            filePath: req.file.path,
+        });
+
         const fileInfo = {
-            id: id,
+            id: uploadId.toString(),
+            userId: id,
             originalName: req.file.originalname,
             filename: req.file.filename,
             size: req.file.size,
@@ -103,7 +100,7 @@ export const removeFile = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { id, filename } = req.params;
+        const { id, filename } = req.body;
 
         if (!id || !filename) {
             res.status(400).json({
@@ -113,27 +110,31 @@ export const removeFile = async (
             return;
         }
 
+        // Delete from MongoDB
+        const deletedFromDB = await deleteUploadByFilename(id, filename);
+
+        if (!deletedFromDB) {
+            res.status(404).json({
+                success: false,
+                message: 'Fichier introuvable dans la base de données',
+            });
+            return;
+        }
+
         // Construire le chemin du fichier
         const uploadDir = path.join(process.cwd(), 'uploads');
         const userDir = path.join(uploadDir, id);
         const filePath = path.join(userDir, filename);
 
-        // Vérifier que le fichier existe
-        if (!fs.existsSync(filePath)) {
-            res.status(404).json({
-                success: false,
-                message: 'Fichier introuvable',
-            });
-            return;
-        }
+        // Delete from filesystem if exists
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
 
-        // Supprimer le fichier
-        fs.unlinkSync(filePath);
-
-        // Vérifier si le dossier utilisateur est vide et le supprimer si c'est le cas
-        const filesInUserDir = fs.readdirSync(userDir);
-        if (filesInUserDir.length === 0) {
-            fs.rmdirSync(userDir);
+            // Vérifier si le dossier utilisateur est vide et le supprimer si c'est le cas
+            const filesInUserDir = fs.readdirSync(userDir);
+            if (filesInUserDir.length === 0) {
+                fs.rmdirSync(userDir);
+            }
         }
 
         res.status(200).json({
