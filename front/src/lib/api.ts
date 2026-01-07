@@ -21,30 +21,126 @@ export class ApiError extends Error {
     }
 }
 
+// ========== CSRF Token Management ==========
+class CsrfTokenManager {
+    private token: string | null = null;
+    private initPromise: Promise<void> | null = null;
+
+    /**
+     * Initialize CSRF token from server
+     */
+    async init(): Promise<void> {
+        // If already initializing, return the existing promise
+        if (this.initPromise) {
+            return this.initPromise;
+        }
+
+        this.initPromise = (async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/csrf-token`, {
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    this.token = data.token;
+                } else {
+                    console.error('Failed to fetch CSRF token');
+                }
+            } catch (error) {
+                console.error('Error fetching CSRF token:', error);
+            }
+        })();
+
+        return this.initPromise;
+    }
+
+    /**
+     * Get current CSRF token (initialize if needed)
+     */
+    async getToken(): Promise<string | null> {
+        if (!this.token) {
+            await this.init();
+        }
+        return this.token;
+    }
+
+    /**
+     * Refresh CSRF token from server
+     */
+    async refresh(): Promise<void> {
+        this.token = null;
+        this.initPromise = null;
+        await this.init();
+    }
+
+    /**
+     * Check if method requires CSRF token
+     */
+    requiresCsrf(method: string): boolean {
+        return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+    }
+}
+
+// Global CSRF token manager
+const csrfManager = new CsrfTokenManager();
+
+/**
+ * Initialize CSRF token on app startup
+ * Should be called once when the app loads
+ */
+export async function initializeCsrf(): Promise<void> {
+    await csrfManager.init();
+}
+
 async function fetchWithRetry(
     url: string,
     options: RequestInit,
-    retryOnUnauth: boolean = true
+    retryOnUnauth: boolean = true,
+    retryOnCsrf: boolean = true
 ): Promise<Response> {
+    // Get CSRF token if method requires it
+    const method = options.method || 'GET';
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    if (csrfManager.requiresCsrf(method)) {
+        const csrfToken = await csrfManager.getToken();
+        if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+    }
+
     const response = await fetch(url, {
         ...options,
         credentials: 'include', // CRITICAL: Include cookies
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
+        headers,
     });
+
+    // If 403 CSRF error, refresh token and retry
+    if (response.status === 403 && retryOnCsrf) {
+        const errorData = await response.clone().json().catch(() => ({}));
+        if (errorData.code === 'CSRF_TOKEN_MISSING' || errorData.code === 'CSRF_TOKEN_INVALID') {
+            await csrfManager.refresh();
+            return fetchWithRetry(url, options, retryOnUnauth, false);
+        }
+    }
 
     // If 401 and we haven't retried, try to refresh token
     if (response.status === 401 && retryOnUnauth) {
         const refreshResponse = await fetch(`${API_URL}/api/${API_VERSION}/auth/refresh-token`, {
             method: 'POST',
             credentials: 'include',
+            headers: {
+                'X-CSRF-Token': await csrfManager.getToken() || '',
+            },
         });
 
         if (refreshResponse.ok) {
             // Retry original request
-            return fetchWithRetry(url, options, false);
+            return fetchWithRetry(url, options, false, retryOnCsrf);
         }
     }
 
@@ -55,24 +151,45 @@ async function fetchWithRetry(
 async function fetchFileWithRetry(
     url: string,
     options: RequestInit,
-    retryOnUnauth: boolean = true
+    retryOnUnauth: boolean = true,
+    retryOnCsrf: boolean = true
 ): Promise<Response> {
+    // Get CSRF token for file uploads (always POST)
+    const headers: HeadersInit = { ...options.headers };
+    const csrfToken = await csrfManager.getToken();
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+
     const response = await fetch(url, {
         ...options,
         credentials: 'include',
+        headers,
         // Don't set Content-Type - let browser set it with boundary for multipart/form-data
     });
+
+    // If 403 CSRF error, refresh token and retry
+    if (response.status === 403 && retryOnCsrf) {
+        const errorData = await response.clone().json().catch(() => ({}));
+        if (errorData.code === 'CSRF_TOKEN_MISSING' || errorData.code === 'CSRF_TOKEN_INVALID') {
+            await csrfManager.refresh();
+            return fetchFileWithRetry(url, options, retryOnUnauth, false);
+        }
+    }
 
     // If 401 and we haven't retried, try to refresh token
     if (response.status === 401 && retryOnUnauth) {
         const refreshResponse = await fetch(`${API_URL}/api/${API_VERSION}/auth/refresh-token`, {
             method: 'POST',
             credentials: 'include',
+            headers: {
+                'X-CSRF-Token': await csrfManager.getToken() || '',
+            },
         });
 
         if (refreshResponse.ok) {
             // Retry original request
-            return fetchFileWithRetry(url, options, false);
+            return fetchFileWithRetry(url, options, false, retryOnCsrf);
         }
     }
 
@@ -83,11 +200,23 @@ export async function apiRequest<T = any>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
-    // Ensure endpoint uses versioned API
-    const versionedEndpoint = endpoint.startsWith('/api/v')
-        ? endpoint
-        : endpoint.replace('/api/', `/api/${API_VERSION}/`);
-    const url = `${API_URL}${versionedEndpoint}`;
+    // Build full URL with versioned API
+    let finalEndpoint = endpoint;
+
+    // If endpoint doesn't start with /api/v, add version
+    if (!endpoint.startsWith('/api/v')) {
+        if (endpoint.startsWith('/api/')) {
+            // Replace /api/ with /api/v1/
+            finalEndpoint = endpoint.replace('/api/', `/api/${API_VERSION}/`);
+        } else {
+            // Add /api/v1/ prefix
+            finalEndpoint = `/api/${API_VERSION}${endpoint}`;
+        }
+    }
+
+    const url = `${API_URL}${finalEndpoint}`;
+
+    console.log(url);
 
     const response = await fetchWithRetry(url, options);
 
@@ -167,7 +296,7 @@ export const fileApi = {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetchFileWithRetry(`${API_URL}/api/file/addFile`, {
+        const response = await fetchFileWithRetry(`${API_URL}/api/${API_VERSION}/file/addFile`, {
             method: 'POST',
             body: formData,
         });

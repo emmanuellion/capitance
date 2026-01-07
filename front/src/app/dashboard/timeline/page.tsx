@@ -48,20 +48,20 @@ export default function TimelinePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Timeline
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
             Évolution historique de votre portefeuille
           </p>
         </div>
@@ -82,7 +82,7 @@ export default function TimelinePage() {
       {timeline.length === 0 ? (
         <Card>
           <CardContent className="py-12">
-            <p className="text-center text-gray-500 dark:text-gray-400">
+            <p className="text-center text-slate-500 dark:text-slate-400">
               Aucune donnée historique disponible. Importez plusieurs fichiers pour voir l'évolution.
             </p>
           </CardContent>
@@ -91,27 +91,27 @@ export default function TimelinePage() {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-gray-200 dark:border-gray-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <Card className="border-slate-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-950/30">
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Valeur Actuelle
                 </p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(latestValue)}
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                   Dernière mise à jour
                 </p>
               </CardContent>
             </Card>
 
-            <Card className={`border-gray-200 dark:border-gray-800 ${
+            <Card className={`border-slate-200 dark:border-slate-700 ${
               latestGainLoss >= 0
-                ? 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30'
-                : 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30'
+                ? 'bg-green-50 dark:bg-green-950/30'
+                : 'bg-red-50 dark:bg-red-950/30'
             }`}>
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Performance
                 </p>
                 <div className="flex items-center gap-2">
@@ -128,21 +128,21 @@ export default function TimelinePage() {
                     {formatCurrency(latestGainLoss)}
                   </p>
                 </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                   Plus/Moins-value totale
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border-gray-200 dark:border-gray-800 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30">
+            <Card className="border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-950/30">
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Snapshots
                 </p>
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                   {timeline.length}
                 </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                   Points de mesure
                 </p>
               </CardContent>
@@ -150,9 +150,9 @@ export default function TimelinePage() {
           </div>
 
           {/* Timeline Chart */}
-          <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
             <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">
+              <CardTitle className="text-slate-900 dark:text-white">
                 Évolution du Portefeuille
               </CardTitle>
             </CardHeader>
@@ -171,9 +171,9 @@ export default function TimelinePage() {
           </Card>
 
           {/* Timeline List */}
-          <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
             <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white">
+              <CardTitle className="text-slate-900 dark:text-white">
                 Historique Détaillé
               </CardTitle>
             </CardHeader>
@@ -191,23 +191,23 @@ export default function TimelinePage() {
                       className={`flex items-center justify-between p-4 border rounded-lg ${
                         isLatest
                           ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30'
-                          : 'border-gray-200 dark:border-gray-800'
+                          : 'border-slate-200 dark:border-slate-800'
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-lg ${
                           isLatest
                             ? 'bg-blue-100 dark:bg-blue-900/50'
-                            : 'bg-gray-100 dark:bg-gray-800'
+                            : 'bg-slate-100 dark:bg-slate-800'
                         }`}>
                           <Calendar className={`h-5 w-5 ${
                             isLatest
                               ? 'text-blue-600 dark:text-blue-400'
-                              : 'text-gray-600 dark:text-gray-400'
+                              : 'text-slate-600 dark:text-slate-400'
                           }`} />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
+                          <p className="font-medium text-slate-900 dark:text-white">
                             {formatDate(entry.date)}
                             {isLatest && (
                               <span className="ml-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">
@@ -215,13 +215,13 @@ export default function TimelinePage() {
                               </span>
                             )}
                           </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
                             {entry.snapshotCount} snapshot{entry.snapshotCount > 1 ? 's' : ''} ce jour
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-gray-900 dark:text-white">
+                        <p className="font-bold text-slate-900 dark:text-white">
                           {formatCurrency(entry.totalValue)}
                         </p>
                         {prevEntry && (

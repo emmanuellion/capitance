@@ -66,6 +66,38 @@ export const addFile = async (
             return;
         }
 
+        // Read file content for validation
+        const fileContent = fs.readFileSync(req.file.path, 'utf-8');
+
+        // Validate CSV structure and security
+        const { validateCSVStructure } = await import('../utils/csvSecurity.js');
+        const validationResult = validateCSVStructure(fileContent, {
+            maxLines: 10000,
+            maxColumns: 50,
+            maxCellLength: 1000,
+        });
+
+        if (!validationResult.valid) {
+            // Delete uploaded file if validation fails
+            fs.unlinkSync(req.file.path);
+
+            res.status(400).json({
+                success: false,
+                message: 'Fichier CSV invalide ou dangereux',
+                errors: validationResult.errors,
+                warnings: validationResult.warnings,
+            });
+            return;
+        }
+
+        // Log warnings if any
+        if (validationResult.warnings.length > 0) {
+            logger.warn('CSV validation warnings', {
+                filename: req.file.originalname,
+                warnings: validationResult.warnings,
+            });
+        }
+
         // Save to MongoDB
         const uploadId = await createUpload({
             userId: req.user.userId,

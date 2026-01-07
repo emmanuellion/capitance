@@ -4,6 +4,7 @@ import type { NormalizedPosition, SnapshotFormatType } from '../../types/snapsho
 import type { ParseResult, ParseError, ColumnMapping } from '../../types/parser.types.js';
 import { parseGermanNumber, parsePercentage } from '../../utils/numberUtils.js';
 import { parserFactory } from './ParserFactory.js';
+import { sanitizeCsvCell } from '../../utils/csvSecurity.js';
 
 /**
  * Parser for Trade Republic portfolio CSV exports
@@ -166,8 +167,8 @@ export class TradeRepublicParser extends BaseSnapshotParser {
         const totalInvested = quantity * buyingPrice;
 
         return {
-            isin: row.isin.trim(),
-            assetName: row.name.trim(),
+            isin: sanitizeCsvCell(row.isin.trim()),
+            assetName: sanitizeCsvCell(row.name.trim()),
             quantity,
             currentPrice,
             currentValue: totalValue,

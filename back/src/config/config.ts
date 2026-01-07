@@ -22,6 +22,15 @@ interface Config {
         from: string;
         fromName: string;
     };
+    redis: {
+        enabled: boolean;
+        host: string;
+        port: number;
+        password?: string;
+        db: number;
+        keyPrefix: string;
+        defaultTTL: number;
+    };
     frontendUrl: string;
     password: {
         minLength: number;
@@ -47,6 +56,15 @@ const config: Config = {
         service: process.env.EMAIL_SERVICE || 'console',
         from: process.env.EMAIL_FROM || 'noreply@capitance.com',
         fromName: process.env.EMAIL_FROM_NAME || 'Capitance',
+    },
+    redis: {
+        enabled: process.env.REDIS_ENABLED === 'true',
+        host: process.env.REDIS_HOST || 'localhost',
+        port: Number(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD,
+        db: Number(process.env.REDIS_DB) || 0,
+        keyPrefix: process.env.REDIS_KEY_PREFIX || 'capitance:',
+        defaultTTL: Number(process.env.REDIS_DEFAULT_TTL) || 300, // 5 minutes
     },
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
     password: {

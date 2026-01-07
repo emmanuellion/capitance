@@ -3,6 +3,7 @@ import { BaseSnapshotParser } from './ISnapshotParser.js';
 import type { NormalizedPosition, SnapshotFormatType } from '../../types/snapshot.types.js';
 import type { ParseResult, ParseError, ColumnMapping } from '../../types/parser.types.js';
 import { parserFactory } from './ParserFactory.js';
+import { sanitizeCsvCell } from '../../utils/csvSecurity.js';
 
 /**
  * Parser for Interactive Brokers portfolio CSV exports
@@ -176,8 +177,8 @@ export class InteractiveBrokersParser extends BaseSnapshotParser {
         const gainLossPercentage = costBasis > 0 ? (unrealizedPL / costBasis) * 100 : 0;
 
         return {
-            isin: row.symbol.trim(), // IB uses Symbol instead of ISIN
-            assetName: row.description?.trim() || row.symbol.trim(),
+            isin: sanitizeCsvCell(row.symbol.trim()), // IB uses Symbol instead of ISIN
+            assetName: sanitizeCsvCell(row.description?.trim() || row.symbol.trim()),
             quantity,
             currentPrice: marketPrice,
             currentValue: marketValue,

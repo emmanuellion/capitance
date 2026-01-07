@@ -98,21 +98,21 @@ export default function PositionsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
       </div>
     );
   }
 
   return (
     <PageTransition>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Positions
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
             Détail de toutes vos positions actives
           </p>
         </div>
@@ -132,12 +132,12 @@ export default function PositionsPage() {
 
       {/* Filters */}
       {positions.length > 0 && (
-        <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Rechercher par nom ou ISIN..."
                   value={searchTerm}
@@ -174,7 +174,7 @@ export default function PositionsPage() {
 
             {/* Results count */}
             {searchTerm && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
                 {filtered.length} position{filtered.length !== 1 ? 's' : ''} trouvée{filtered.length !== 1 ? 's' : ''}
               </p>
             )}
@@ -186,9 +186,9 @@ export default function PositionsPage() {
       {positions.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <FadeIn delay={0.1}>
-            <Card className="border-gray-200 dark:border-gray-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <Card className="border-slate-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-950/30">
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Valeur Totale
                 </p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -199,13 +199,13 @@ export default function PositionsPage() {
           </FadeIn>
 
           <FadeIn delay={0.2}>
-            <Card className={`border-gray-200 dark:border-gray-800 ${
+            <Card className={`border-slate-200 dark:border-slate-700 ${
               totalGainLoss >= 0
-                ? 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30'
-                : 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30'
+                ? 'bg-green-50 dark:bg-green-950/30'
+                : 'bg-red-50 dark:bg-red-950/30'
             }`}>
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Plus/Moins-Value
                 </p>
                 <div className="flex items-center gap-2">
@@ -227,9 +227,9 @@ export default function PositionsPage() {
           </FadeIn>
 
           <FadeIn delay={0.3}>
-            <Card className="border-gray-200 dark:border-gray-800 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30">
+            <Card className="border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-950/30">
               <CardContent className="pt-6">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
                   Nombre de Positions
                 </p>
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
@@ -245,7 +245,7 @@ export default function PositionsPage() {
       {positions.length === 0 ? (
         <Card>
           <CardContent className="py-12">
-            <p className="text-center text-gray-500 dark:text-gray-400">
+            <p className="text-center text-slate-500 dark:text-slate-400">
               Aucune position trouvée. Importez votre premier fichier pour voir vos positions.
             </p>
           </CardContent>
@@ -253,7 +253,7 @@ export default function PositionsPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12">
-            <p className="text-center text-gray-500 dark:text-gray-400">
+            <p className="text-center text-slate-500 dark:text-slate-400">
               Aucune position ne correspond aux critères de recherche.
             </p>
           </CardContent>

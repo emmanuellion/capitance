@@ -4,6 +4,7 @@ import type { NormalizedPosition, SnapshotFormatType } from '../../types/snapsho
 import type { ParseResult, ParseError, ColumnMapping as BaseColumnMapping } from '../../types/parser.types.js';
 import { parseFrenchNumber, parsePercentage } from '../../utils/numberUtils.js';
 import { parserFactory } from './ParserFactory.js';
+import { sanitizeCsvCell } from '../../utils/csvSecurity.js';
 
 interface ExtendedColumnMapping {
     isin: string;
@@ -231,10 +232,10 @@ export class GenericCSVParser extends BaseSnapshotParser {
             throw new Error('Column mapping not initialized');
         }
 
-        const isin = this.extendedColumnMapping.isin ? row[this.extendedColumnMapping.isin]?.toString().trim() : '';
-        const assetName = this.extendedColumnMapping.assetName ? row[this.extendedColumnMapping.assetName]?.toString().trim() : isin;
+        const isin = sanitizeCsvCell(this.extendedColumnMapping.isin ? row[this.extendedColumnMapping.isin]?.toString().trim() : '');
+        const assetName = sanitizeCsvCell(this.extendedColumnMapping.assetName ? row[this.extendedColumnMapping.assetName]?.toString().trim() : isin);
         const quantity = this.extendedColumnMapping.quantity ? parseFrenchNumber(row[this.extendedColumnMapping.quantity]) : 0;
-        const currency = this.extendedColumnMapping.currency ? row[this.extendedColumnMapping.currency]?.toString().trim() : 'EUR';
+        const currency = sanitizeCsvCell(this.extendedColumnMapping.currency ? row[this.extendedColumnMapping.currency]?.toString().trim() : 'EUR');
 
         // Try to get current price and value
         let currentPrice = 0;

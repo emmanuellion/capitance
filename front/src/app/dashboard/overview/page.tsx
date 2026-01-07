@@ -15,10 +15,10 @@ import { FadeIn } from '@/components/motion/FadeIn';
 // Dynamic imports for charts - loaded on-demand
 const PerformanceCard = dynamic(() => import('@/components/analytics/PerformanceCard').then(mod => ({ default: mod.PerformanceCard })), {
   loading: () => (
-    <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <CardContent className="pt-6">
         <div className="h-[200px] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
         </div>
       </CardContent>
     </Card>
@@ -28,10 +28,10 @@ const PerformanceCard = dynamic(() => import('@/components/analytics/Performance
 
 const AllocationChart = dynamic(() => import('@/components/analytics/AllocationChart').then(mod => ({ default: mod.AllocationChart })), {
   loading: () => (
-    <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <CardContent className="pt-6">
         <div className="h-[300px] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
         </div>
       </CardContent>
     </Card>
@@ -41,10 +41,10 @@ const AllocationChart = dynamic(() => import('@/components/analytics/AllocationC
 
 const TimelineChart = dynamic(() => import('@/components/analytics/TimelineChart').then(mod => ({ default: mod.TimelineChart })), {
   loading: () => (
-    <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       <CardContent className="pt-6">
         <div className="h-[300px] flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
         </div>
       </CardContent>
     </Card>
@@ -168,21 +168,21 @@ export default function OverviewPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
       </div>
     );
   }
 
   return (
     <PageTransition>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Graphiques et Métriques
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
             Visualisez vos performances avec des graphiques détaillés
           </p>
         </div>
@@ -203,7 +203,7 @@ export default function OverviewPage() {
       {!metrics ? (
         <Card>
           <CardContent className="py-12">
-            <p className="text-center text-gray-500 dark:text-gray-400">
+            <p className="text-center text-slate-500 dark:text-slate-400">
               Aucune donnée disponible. Importez votre premier fichier pour voir les graphiques.
             </p>
           </CardContent>
@@ -215,27 +215,27 @@ export default function OverviewPage() {
 
           {/* Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                   Répartition par Actif
                 </h3>
                 {metrics.positions.length > 0 ? (
                   <AllocationChart positions={metrics.positions} />
                 ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-12">
+                  <p className="text-center text-slate-500 dark:text-slate-400 py-12">
                     Aucune position trouvée
                   </p>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardContent className="pt-6">
                 {metrics.timeline.length > 0 ? (
                   <TimelineChart timeline={metrics.timeline} />
                 ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-12">
+                  <p className="text-center text-slate-500 dark:text-slate-400 py-12">
                     Aucune donnée temporelle
                   </p>
                 )}

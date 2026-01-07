@@ -1,0 +1,623 @@
+openapi: 3.0.3
+info:
+  title: Capitance API
+  description: |
+    API REST pour la gestion et l'analyse de portefeuilles d'investissement.
+
+    ## Authentification
+
+    L'API utilise JWT (JSON Web Tokens) avec refresh token rotation pour l'authentification.
+
+    - **Access Token**: Expire après 15 minutes, envoyé dans un cookie HttpOnly
+    - **Refresh Token**: Expire après 7 jours (30 jours avec "Se souvenir de moi")
+
+    ## Protection CSRF
+
+    Toutes les requêtes qui modifient des données (POST, PUT, PATCH, DELETE) nécessitent un token CSRF.
+
+    1. Obtenez le token: `GET /api/csrf-token`
+    2. Incluez-le dans le header: `X-CSRF-Token: <token>`
+
+    Voir [CSRF_IMPLEMENTATION.md](./CSRF_IMPLEMENTATION.md) pour plus de détails.
+
+    ## Rate Limiting
+
+    - **Auth endpoints**: 5 requêtes / 15 minutes
+    - **API générale**: 100 requêtes / 15 minutes
+
+  version: 1.0.0
+  contact:
+    name: Support Capitance
+    url: https://github.com/your-org/capitance
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Serveur de développement
+  - url: https://api.capitance.com/api/v1
+    description: Serveur de production
+
+tags:
+  - name: Auth
+    description: Authentification et gestion des utilisateurs
+  - name: Files
+    description: Upload et gestion des fichiers CSV
+  - name: Snapshots
+    description: Snapshots de portefeuille et analyse
+  - name: CSRF
+    description: Protection CSRF
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: accessToken
+      description: JWT access token dans un cookie HttpOnly
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Token CSRF pour les requêtes qui modifient des données
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Erreur de validation"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        isEmailVerified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Position:
+      type: object
+      properties:
+        isin:
+          type: string
+          example: "US0378331005"
+        assetName:
+          type: string
+          example: "Apple Inc."
+        quantity:
+          type: number
+          example: 10
+        currentPrice:
+          type: number
+          example: 165.25
+        currentValue:
+          type: number
+          example: 1652.50
+        averageBuyingPrice:
+          type: number
+          example: 150.50
+        totalInvested:
+          type: number
+          example: 1505.00
+        gainLoss:
+          type: number
+          example: 147.50
+        gainLossPercentage:
+          type: number
+          example: 9.80
+        currency:
+          type: string
+          example: "EUR"
+        intradayVariation:
+          type: number
+          nullable: true
+        intradayVariationPercentage:
+          type: number
+          nullable: true
+
+    Snapshot:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        uploadId:
+          type: string
+        snapshotDate:
+          type: string
+          format: date-time
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        totalValue:
+          type: number
+          example: 10000.50
+        totalGainLoss:
+          type: number
+          example: 1250.30
+        totalGainLossPercentage:
+          type: number
+          example: 14.29
+        intradayVariation:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Upload:
+      type: object
+      properties:
+        _id:
+          type: string
+        filename:
+          type: string
+          example: "file-1234567890-123456789.csv"
+        originalName:
+          type: string
+          example: "portfolio.csv"
+        size:
+          type: integer
+          example: 2048
+        mimetype:
+          type: string
+          example: "text/csv"
+        uploadedAt:
+          type: string
+          format: date-time
+        formatType:
+          type: string
+          enum: [boursobank_snapshot, trade_republic_snapshot, interactive_brokers, generic_csv]
+        formatDetectionConfidence:
+          type: number
+          example: 0.95
+        processingStatus:
+          type: string
+          enum: [pending, processed, failed]
+
+paths:
+  # ========== CSRF ==========
+  /csrf-token:
+    get:
+      tags: [CSRF]
+      summary: Obtenir un token CSRF
+      description: Récupère ou génère un token CSRF pour les requêtes qui modifient des données
+      responses:
+        '200':
+          description: Token CSRF récupéré avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                    example: "abc123def456..."
+
+  # ========== AUTH ==========
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Créer un compte utilisateur
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: Compte créé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+        '400':
+          description: Erreur de validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Se connecter
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                rememberMe:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Connexion réussie
+          headers:
+            Set-Cookie:
+              description: Access et refresh tokens
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Identifiants invalides
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Se déconnecter
+      security:
+        - cookieAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Déconnexion réussie
+        '401':
+          description: Non authentifié
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Obtenir l'utilisateur actuel
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Utilisateur récupéré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Non authentifié
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Rafraîchir l'access token
+      security:
+        - csrfToken: []
+      description: Utilise le refresh token cookie pour obtenir un nouvel access token
+      responses:
+        '200':
+          description: Token rafraîchi
+        '401':
+          description: Refresh token invalide ou expiré
+
+  # ========== FILES ==========
+  /file/getFile/{id}:
+    get:
+      tags: [Files]
+      summary: Récupérer tous les fichiers de l'utilisateur
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID de l'utilisateur
+      responses:
+        '200':
+          description: Liste des fichiers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Upload'
+
+  /file/addFile:
+    post:
+      tags: [Files]
+      summary: Upload un fichier CSV
+      description: |
+        Upload et analyse un fichier CSV de portefeuille.
+        Le système détecte automatiquement le format (Boursobank, Trade Republic, etc.)
+      security:
+        - cookieAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Fichier CSV (max 10MB)
+                formatType:
+                  type: string
+                  description: Format manuel (optionnel)
+                snapshotDate:
+                  type: string
+                  format: date-time
+                  description: Date du snapshot (optionnel)
+      responses:
+        '200':
+          description: Fichier uploadé et analysé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      uploadId:
+                        type: string
+                      snapshotId:
+                        type: string
+                      formatDetection:
+                        type: object
+                      snapshot:
+                        type: object
+                      parseErrors:
+                        type: array
+                      parseWarnings:
+                        type: array
+        '400':
+          description: Fichier invalide ou erreur de parsing
+
+  /file/removeFile:
+    delete:
+      tags: [Files]
+      summary: Supprimer un fichier
+      security:
+        - cookieAuth: []
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename]
+              properties:
+                filename:
+                  type: string
+      responses:
+        '200':
+          description: Fichier supprimé
+        '404':
+          description: Fichier introuvable
+
+  # ========== SNAPSHOTS ==========
+  /snapshots:
+    get:
+      tags: [Snapshots]
+      summary: Récupérer tous les snapshots de l'utilisateur
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Liste des snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Snapshot'
+
+  /snapshots/{snapshotId}:
+    get:
+      tags: [Snapshots]
+      summary: Récupérer un snapshot spécifique
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: snapshotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Snapshot récupéré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Snapshot'
+        '404':
+          description: Snapshot introuvable
+
+    delete:
+      tags: [Snapshots]
+      summary: Supprimer un snapshot
+      security:
+        - cookieAuth: []
+        - csrfToken: []
+      parameters:
+        - name: snapshotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Snapshot supprimé
+        '404':
+          description: Snapshot introuvable
+
+  /snapshots/timeline:
+    get:
+      tags: [Snapshots]
+      summary: Récupérer la timeline des snapshots
+      description: Historique complet des snapshots ordonnés par date
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Timeline récupérée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date-time
+                        totalValue:
+                          type: number
+                        totalGainLoss:
+                          type: number
+                        totalGainLossPercentage:
+                          type: number
+
+  /snapshots/position/{isin}:
+    get:
+      tags: [Snapshots]
+      summary: Récupérer l'historique d'une position
+      description: Historique complet d'un actif spécifique (ISIN)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: isin
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "US0378331005"
+      responses:
+        '200':
+          description: Historique de la position
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Position'
+
+  /snapshots/reprocess-all:
+    post:
+      tags: [Snapshots]
+      summary: Retraiter tous les uploads
+      description: Retraite tous les fichiers CSV uploadés (admin/debugging)
+      security:
+        - cookieAuth: []
+        - csrfToken: []
+      responses:
+        '200':
+          description: Retraitement lancé
+        '500':
+          description: Erreur de retraitement

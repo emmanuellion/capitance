@@ -2,6 +2,8 @@ import fs from 'fs';
 import type { ObjectId } from 'mongodb';
 import { parserFactory } from './parsers/ParserFactory.js';
 import './parsers/BoursobankSnapshotParser.js'; // Ensure parser is registered
+import './parsers/FortuneoParser.js'; // Ensure parser is registered
+import './parsers/BourseDirectParser.js'; // Ensure parser is registered
 import './parsers/TradeRepublicParser.js'; // Ensure parser is registered
 import './parsers/InteractiveBrokersParser.js'; // Ensure parser is registered
 import './parsers/GenericCSVParser.js'; // Ensure parser is registered

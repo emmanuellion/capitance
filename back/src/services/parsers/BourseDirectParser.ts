@@ -7,23 +7,24 @@ import { parserFactory } from './ParserFactory.js';
 import { sanitizeCsvCell } from '../../utils/csvSecurity.js';
 
 /**
- * Parser for Boursobank snapshot CSV files
- * Format: name;isin;quantity;buyingPrice;lastPrice;intradayVariation;amount;amountVariation;variation
+ * Parser for Bourse Direct snapshot CSV files
+ * Format typique: Valeur;ISIN;Qté;PRU;Cours;Valorisation;+/- value;Perf %
+ *
+ * Note: Si votre fichier Bourse Direct a un format différent, ajustez les colonnes dans expectedHeaders
  */
-export class BoursobankSnapshotParser extends BaseSnapshotParser {
-  readonly formatType = SnapshotFormatType.BOURSOBANK_SNAPSHOT;
-  readonly formatName = 'Boursobank Position Snapshot';
+export class BourseDirectParser extends BaseSnapshotParser {
+  readonly formatType = SnapshotFormatType.BOURSE_DIRECT_SNAPSHOT;
+  readonly formatName = 'Bourse Direct Position Snapshot';
 
   private readonly expectedHeaders = [
-    'name',
+    'valeur',
     'isin',
-    'quantity',
-    'buyingPrice',
-    'lastPrice',
-    'intradayVariation',
-    'amount',
-    'amountVariation',
-    'variation',
+    'qte',
+    'pru',
+    'cours',
+    'valorisation',
+    'plusmoinsvalue',
+    'perf',
   ];
 
   getExpectedHeaders(): string[] {
@@ -36,13 +37,15 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
 
     const firstLine = lines[0].replace(/^\uFEFF/, '').toLowerCase();
 
-    // Must have these key headers
-    return (
-      firstLine.includes('isin') &&
-      firstLine.includes('buyingprice') &&
-      firstLine.includes('lastprice') &&
-      firstLine.includes('quantity')
-    );
+    // Check for Bourse Direct-specific headers
+    // Bourse Direct typically uses "Valeur", "ISIN", "Qté", "PRU", "Cours"
+    const hasValeur = firstLine.includes('valeur');
+    const hasIsin = firstLine.includes('isin');
+    const hasPru = firstLine.includes('pru');
+    const hasQte = firstLine.includes('qté') || firstLine.includes('qte') || firstLine.includes('quantite');
+    const hasCours = firstLine.includes('cours');
+
+    return hasValeur && hasIsin && hasPru && hasQte && hasCours;
   }
 
   async parse(fileContent: string): Promise<ParseResult> {
@@ -60,7 +63,8 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
 
         try {
           // Skip rows without ISIN
-          if (!row.isin || row.isin.trim() === '') {
+          const isinField = row.isin || row.ISIN || row['Code ISIN'];
+          if (!isinField || isinField.trim() === '') {
             warnings.push({
               row: i + 2,
               message: 'Row skipped: missing ISIN',
@@ -72,7 +76,7 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
           positions.push(position);
         } catch (error) {
           errors.push({
-            row: i + 2, // +2 for 1-indexed and header
+            row: i + 2,
             message: error instanceof Error ? error.message : 'Unknown error',
             severity: 'error',
           });
@@ -86,7 +90,7 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
         warnings,
         metadata: {
           formatType: this.formatType,
-          bankName: 'Boursobank',
+          bankName: 'Bourse Direct',
           parseWarnings: warnings.map((w) => w.message),
         },
       };
@@ -102,7 +106,7 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
         ],
         metadata: {
           formatType: this.formatType,
-          bankName: 'Boursobank',
+          bankName: 'Bourse Direct',
         },
       };
     }
@@ -112,33 +116,37 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
    * Parse a single row into NormalizedPosition
    */
   private parseRow(row: any): NormalizedPosition {
-    // Parse values
-    const quantity = parseFrenchNumber(row.quantity);
-    const buyingPrice = parseFrenchNumber(row.buyingPrice);
-    const lastPrice = parseFrenchNumber(row.lastPrice);
-    const amount = parseFrenchNumber(row.amount);
-    const amountVariation = parseFrenchNumber(row.amountVariation);
-    const variation = parsePercentage(row.variation);
-    const intradayVariation = parsePercentage(row.intradayVariation);
+    // Get fields with flexible column names
+    const isin = row.isin || row.ISIN || row['Code ISIN'];
+    const valeur = row.valeur || row.Valeur || row.libelle || row.name;
+    const qte = row.qte || row.qté || row['Qté'] || row.quantite || row.quantity;
+    const pru = row.pru || row.PRU;
+    const cours = row.cours || row.Cours || row.price || row.currentprice;
+    const valorisation = row.valorisation || row.Valorisation || row.valeur || row.value;
+    const plusMoinsValue = row.plusmoinsvalue || row['+/- value'] || row['+/-value'] || row.gainloss;
+    const perf = row.perf || row['perf %'] || row['Perf %'] || row.performance || row['performance %'];
 
-    // Calculate derived values
-    const totalInvested = quantity * buyingPrice;
-    const currentValue = amount; // Boursobank provides this directly
-    const gainLoss = amountVariation; // Boursobank provides this directly
-    const gainLossPercentage = variation; // Boursobank provides this as percentage
+    // Parse values
+    const quantity = parseFrenchNumber(qte);
+    const averageBuyingPrice = parseFrenchNumber(pru);
+    const currentPrice = parseFrenchNumber(cours);
+    const currentValue = parseFrenchNumber(valorisation);
+    const gainLoss = parseFrenchNumber(plusMoinsValue);
+    const gainLossPercentage = parsePercentage(perf);
+
+    // Calculate total invested
+    const totalInvested = quantity * averageBuyingPrice;
 
     return {
-      isin: sanitizeCsvCell(row.isin?.trim()),
-      assetName: sanitizeCsvCell(row.name?.trim().replace(/"/g, '')),
+      isin: sanitizeCsvCell(isin?.trim()),
+      assetName: sanitizeCsvCell(valeur?.trim().replace(/"/g, '')),
       quantity,
-      currentPrice: lastPrice,
+      currentPrice,
       currentValue,
-      averageBuyingPrice: buyingPrice,
+      averageBuyingPrice,
       totalInvested,
       gainLoss,
       gainLossPercentage,
-      intradayVariation,
-      intradayVariationPercentage: intradayVariation,
       currency: 'EUR',
     };
   }
@@ -146,13 +154,13 @@ export class BoursobankSnapshotParser extends BaseSnapshotParser {
   getColumnMapping(): ColumnMapping {
     return {
       isin: 'isin',
-      assetName: 'name',
-      quantity: 'quantity',
-      currentPrice: 'lastPrice',
-      buyingPrice: 'buyingPrice',
+      assetName: 'valeur',
+      quantity: 'qte',
+      currentPrice: 'cours',
+      buyingPrice: 'pru',
     };
   }
 }
 
 // Auto-register this parser
-parserFactory.register(new BoursobankSnapshotParser());
+parserFactory.register(new BourseDirectParser());

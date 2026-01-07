@@ -3,6 +3,8 @@ import type { ObjectId } from 'mongodb';
 // Supported snapshot formats
 export enum SnapshotFormatType {
   BOURSOBANK_SNAPSHOT = 'boursobank_snapshot',
+  FORTUNEO_SNAPSHOT = 'fortuneo_snapshot',
+  BOURSE_DIRECT_SNAPSHOT = 'bourse_direct_snapshot',
   DEGIRO_POSITIONS = 'degiro_positions',
   TRADE_REPUBLIC_SNAPSHOT = 'trade_republic_snapshot',
   INTERACTIVE_BROKERS_SNAPSHOT = 'interactive_brokers_snapshot',

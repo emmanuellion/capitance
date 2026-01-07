@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as authController from '../../controllers/authController.js';
 import { verifyAuth } from '../../middleware/auth.js';
+import { verifyCsrfToken } from '../../middleware/csrf.js';
 import {
     validateRegistration,
     validateLogin,
@@ -11,17 +12,17 @@ import { strictLimiter } from '../../middleware/security.js';
 
 const router = Router();
 
-// Public routes (with strict rate limiting)
-router.post('/register', strictLimiter, validateRegistration, authController.register);
-router.post('/login', strictLimiter, validateLogin, authController.login);
+// Public routes (with strict rate limiting and CSRF protection)
+router.post('/register', strictLimiter, verifyCsrfToken, validateRegistration, authController.register);
+router.post('/login', strictLimiter, verifyCsrfToken, validateLogin, authController.login);
 router.get('/verify-email/:token', authController.verifyEmail);
-router.post('/forgot-password', strictLimiter, validateForgotPassword, authController.forgotPassword);
-router.post('/reset-password', strictLimiter, validateResetPassword, authController.resetPasswordHandler);
-router.post('/refresh-token', authController.refreshAccessToken);
+router.post('/forgot-password', strictLimiter, verifyCsrfToken, validateForgotPassword, authController.forgotPassword);
+router.post('/reset-password', strictLimiter, verifyCsrfToken, validateResetPassword, authController.resetPasswordHandler);
+router.post('/refresh-token', verifyCsrfToken, authController.refreshAccessToken);
 
-// Protected routes (require authentication)
-router.post('/logout', verifyAuth, authController.logout);
-router.post('/logout-all', verifyAuth, authController.logoutAllDevices);
+// Protected routes (require authentication and CSRF protection)
+router.post('/logout', verifyAuth, verifyCsrfToken, authController.logout);
+router.post('/logout-all', verifyAuth, verifyCsrfToken, authController.logoutAllDevices);
 router.get('/me', verifyAuth, authController.getCurrentUser);
 
 export default router;

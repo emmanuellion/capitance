@@ -107,21 +107,21 @@ export default function FilesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600"></div>
       </div>
     );
   }
 
   return (
     <PageTransition>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Fichiers
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
             Gérez vos imports et snapshots de portefeuille
           </p>
         </div>
@@ -148,20 +148,20 @@ export default function FilesPage() {
       )}
 
       {/* Upload Card */}
-      <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">
+          <CardTitle className="text-slate-900 dark:text-white">
             Importer un nouveau fichier
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
-            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-700 dark:text-gray-300 mb-2">
+          <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+            <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <p className="text-slate-700 dark:text-slate-300 mb-2">
               Glissez-déposez votre fichier CSV ici ou cliquez pour sélectionner
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              Formats supportés: CSV de Boursobank
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              Formats supportés: Boursobank, Fortuneo, Bourse Direct
             </p>
             <input
               ref={fileInputRef}
@@ -175,7 +175,7 @@ export default function FilesPage() {
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadMutation.isPending}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               {uploadMutation.isPending ? (
                 <>
@@ -194,15 +194,15 @@ export default function FilesPage() {
       </Card>
 
       {/* Files List */}
-      <Card className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">
+          <CardTitle className="text-slate-900 dark:text-white">
             Fichiers importés ({files.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {files.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <p className="text-center text-slate-500 dark:text-slate-400 py-8">
               Aucun fichier importé pour le moment
             </p>
           ) : (
@@ -210,17 +210,17 @@ export default function FilesPage() {
               {files.map((file) => (
                 <div
                   key={file._id}
-                  className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1">
                     <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                       <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-white">
+                      <h4 className="font-medium text-slate-900 dark:text-white">
                         {file.originalName}
                       </h4>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center gap-4 mt-1 text-sm text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-1">
                           <HardDrive className="h-3 w-3" />
                           {formatFileSize(file.size)}

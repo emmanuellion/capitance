@@ -1,15 +1,25 @@
 import express, { type Express } from 'express';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import config from './config/config.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { helmetConfig, corsConfig, generalLimiter } from './middleware/security.js';
+import { setCsrfToken, getCsrfToken } from './middleware/csrf.js';
 import router from './routes/index.js';
 import v1Router from './routes/v1/index.js';
-import { connectToDatabase } from './config/database.js';
+import { connectToDatabase, closeDatabaseConnection } from './config/database.js';
 import { initializeUserIndexes } from './models/User.js';
 import { initializePortfolioSnapshotIndexes } from './models/PortfolioSnapshot.js';
+import { closeRedis } from './config/redis.js';
 import logger from './utils/logger.js';
+
+// ES Module __dirname workaround
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app: Express = express();
 
@@ -38,6 +48,26 @@ app.use(cookieParser());
 // Middleware de parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CSRF Protection - Set token cookie on all requests
+app.use(setCsrfToken);
+
+// CSRF token endpoint
+app.get('/api/csrf-token', getCsrfToken);
+
+// Swagger API Documentation
+if (config.nodeEnv === 'development') {
+    try {
+        const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
+        app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+            customCss: '.swagger-ui .topbar { display: none }',
+            customSiteTitle: 'Capitance API Documentation',
+        }));
+        logger.info('Swagger UI available at /api-docs');
+    } catch (error) {
+        logger.error('Failed to load Swagger documentation', { error });
+    }
+}
 
 // API v1 Routes (current)
 app.use('/api/v1', v1Router);
@@ -81,5 +111,39 @@ async function startServer() {
 }
 
 startServer();
+
+// Graceful shutdown
+const gracefulShutdown = async (signal: string) => {
+    logger.info(`${signal} received. Starting graceful shutdown...`);
+
+    try {
+        // Close Redis connection
+        await closeRedis();
+
+        // Close database connection
+        await closeDatabaseConnection();
+
+        logger.info('Graceful shutdown completed');
+        process.exit(0);
+    } catch (error) {
+        logger.error('Error during graceful shutdown', { error });
+        process.exit(1);
+    }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception', { error });
+    gracefulShutdown('UNCAUGHT_EXCEPTION');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled rejection', { reason, promise });
+    gracefulShutdown('UNHANDLED_REJECTION');
+});
 
 export default app;
