@@ -8,20 +8,9 @@ import { snapshotApi } from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { PageTransition } from '@/components/motion/PageTransition';
-import { cn } from '@/lib/utils';
-
-// ===== NOUVEAUX IMPORTS TEMPS RÉEL =====
-import {
-  useLatestEnrichedSnapshot,
-  usePerformanceSummary
-} from '@/hooks/useRealtimePrices';
-import {
-  RealtimePortfolioSummary,
-  SignificantChangesAlert,
-  RealtimePositionsTable
-} from '@/components/realtime';
+import { FadeIn } from '@/components/motion/FadeIn';
 
 // Dynamic imports for charts - loaded on-demand
 const PerformanceCard = dynamic(() => import('@/components/analytics/PerformanceCard').then(mod => ({ default: mod.PerformanceCard })), {
@@ -91,7 +80,7 @@ interface AnalysisMetrics {
 export default function OverviewPage() {
   const { user } = useAuth();
 
-  // ===== DONNÉES STATIQUES (Snapshot CSV) =====
+  // Fetch snapshots with TanStack Query
   const {
     data: snapshots,
     isLoading: snapshotsLoading,
@@ -103,6 +92,7 @@ export default function OverviewPage() {
     enabled: !!user,
   });
 
+  // Fetch timeline with TanStack Query
   const {
     data: timeline,
     isLoading: timelineLoading,
@@ -113,21 +103,6 @@ export default function OverviewPage() {
     queryFn: () => snapshotApi.getTimeline(),
     enabled: !!user,
   });
-
-  // ===== NOUVEAUX : DONNÉES TEMPS RÉEL =====
-  const {
-    data: enrichedSnapshot,
-    isLoading: realtimeLoading,
-  } = useLatestEnrichedSnapshot(!!user);
-
-  // Get snapshot ID for components
-  const latestSnapshotId = useMemo(() => {
-    if (!snapshots || snapshots.length === 0) return null;
-    const latest = [...snapshots].sort((a: any, b: any) =>
-      new Date(b.snapshotDate).getTime() - new Date(a.snapshotDate).getTime()
-    )[0];
-    return latest._id;
-  }, [snapshots]);
 
   // Combine loading and error states
   const isLoading = snapshotsLoading || timelineLoading;
@@ -203,124 +178,72 @@ export default function OverviewPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-              Vue d'Ensemble
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Votre portfolio en temps réel
-            </p>
-          </div>
-          <Button
-            onClick={() => refetch()}
-            variant="outline"
-            className="gap-2 cursor-pointer hover:scale-105 transition-transform"
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-            {isLoading ? 'Actualisation...' : 'Actualiser'}
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            Graphiques et Métriques
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
+            Visualisez vos performances avec des graphiques détaillés
+          </p>
         </div>
+        <Button onClick={() => refetch()} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Actualiser
+        </Button>
+      </div>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {error instanceof Error ? error.message : 'Erreur lors du chargement des données'}
-            </AlertDescription>
-          </Alert>
-        )}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {error instanceof Error ? error.message : 'Erreur lors du chargement des données'}
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {!metrics ? (
-          <Card>
-            <CardContent className="py-12">
-              <p className="text-center text-slate-500 dark:text-slate-400">
-                Aucune donnée disponible. Importez votre premier fichier pour voir les graphiques.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* ===== NOUVEAU : RÉSUMÉ TEMPS RÉEL ===== */}
-            {latestSnapshotId && (
-              <div className="space-y-4">
-                {/* Badge "Live" */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800 w-fit">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                    Prix mis à jour en temps réel
-                  </span>
-                </div>
+      {!metrics ? (
+        <Card>
+          <CardContent className="py-12">
+            <p className="text-center text-slate-500 dark:text-slate-400">
+              Aucune donnée disponible. Importez votre premier fichier pour voir les graphiques.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Performance Card */}
+          <PerformanceCard metrics={metrics} />
 
-                {/* Performance Temps Réel */}
-                <RealtimePortfolioSummary snapshotId={latestSnapshotId} />
-
-                {/* Alertes Changements Significatifs */}
-                <SignificantChangesAlert snapshotId={latestSnapshotId} threshold={2.0} />
-              </div>
-            )}
-
-            {/* Performance Card Statique (pour comparaison) */}
-            <Card className="border-slate-200 dark:border-slate-700">
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-lg font-semibold">Performance au moment du snapshot</h3>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                    Données du CSV
-                  </span>
-                </div>
-                <PerformanceCard metrics={metrics} />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                  Répartition par Actif
+                </h3>
+                {metrics.positions.length > 0 ? (
+                  <AllocationChart positions={metrics.positions} />
+                ) : (
+                  <p className="text-center text-slate-500 dark:text-slate-400 py-12">
+                    Aucune position trouvée
+                  </p>
+                )}
               </CardContent>
             </Card>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                    Répartition par Actif
-                  </h3>
-                  {metrics.positions.length > 0 ? (
-                    <AllocationChart positions={metrics.positions} />
-                  ) : (
-                    <p className="text-center text-slate-500 dark:text-slate-400 py-12">
-                      Aucune position trouvée
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                <CardContent className="pt-6">
-                  {metrics.timeline.length > 0 ? (
-                    <TimelineChart timeline={metrics.timeline} />
-                  ) : (
-                    <p className="text-center text-slate-500 dark:text-slate-400 py-12">
-                      Aucune donnée temporelle
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ===== NOUVEAU : TABLEAU POSITIONS TEMPS RÉEL ===== */}
-            {latestSnapshotId && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Positions avec Prix Temps Réel</h3>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-slate-600 dark:text-slate-400">
-                        Mis à jour toutes les 5 minutes
-                      </span>
-                    </div>
-                  </div>
-                  <RealtimePositionsTable snapshotId={latestSnapshotId} />
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+            <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+              <CardContent className="pt-6">
+                {metrics.timeline.length > 0 ? (
+                  <TimelineChart timeline={metrics.timeline} />
+                ) : (
+                  <p className="text-center text-slate-500 dark:text-slate-400 py-12">
+                    Aucune donnée temporelle
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
       </div>
     </PageTransition>
   );

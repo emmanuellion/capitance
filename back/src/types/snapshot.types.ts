@@ -35,6 +35,8 @@ export interface NormalizedPosition {
   // Metadata
   currency?: string;
   exchange?: string;
+  symbol?: string; // Ticker symbol for API lookups (e.g., "AAPL", "MSFT")
+  symbolSource?: 'broker_data' | 'asset_name_extraction' | 'manual' | 'api_resolution'; // How the symbol was obtained
 }
 
 // Snapshot metadata

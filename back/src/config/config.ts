@@ -35,6 +35,14 @@ interface Config {
     password: {
         minLength: number;
     };
+    twelveData: {
+        apiKey: string;
+        cacheTTL: number;
+    };
+    alphaVantage: {
+        apiKey: string;
+        cacheTTL: number;
+    };
 }
 
 const config: Config = {
@@ -70,6 +78,14 @@ const config: Config = {
     password: {
         minLength: Number(process.env.MIN_PASSWORD_LENGTH) || 8,
     },
+    twelveData: {
+        apiKey: process.env.TWELVE_DATA_API_KEY || '',
+        cacheTTL: Number(process.env.TWELVE_DATA_CACHE_TTL) || 120, // 2 minutes
+    },
+    alphaVantage: {
+        apiKey: process.env.ALPHA_VANTAGE_API_KEY || '',
+        cacheTTL: Number(process.env.ALPHA_VANTAGE_CACHE_TTL) || 300, // 5 minutes
+    },
 };
 
 // Validate critical config on startup
@@ -78,6 +94,9 @@ if (!config.jwt.accessSecret || config.jwt.accessSecret.length < 32) {
 }
 if (!config.jwt.refreshSecret || config.jwt.refreshSecret.length < 32) {
     throw new Error('JWT_REFRESH_SECRET must be at least 32 characters');
+}
+if (!config.twelveData.apiKey) {
+    console.warn('WARNING: TWELVE_DATA_API_KEY is not set. Real-time price updates will not work.');
 }
 
 export default config;

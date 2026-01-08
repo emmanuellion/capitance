@@ -16,6 +16,7 @@ import { initializeUserIndexes } from './models/User.js';
 import { initializePortfolioSnapshotIndexes } from './models/PortfolioSnapshot.js';
 import { closeRedis } from './config/redis.js';
 import logger from './utils/logger.js';
+import priceUpdateWorker from './services/priceUpdateWorker.js';
 
 // ES Module __dirname workaround
 const __filename = fileURLToPath(import.meta.url);
@@ -101,6 +102,19 @@ async function startServer() {
         await initializePortfolioSnapshotIndexes();
         logger.info('Portfolio snapshot indexes initialized');
 
+        // Initialize symbol mapping indexes
+        const { initializeSymbolMappingIndexes } = await import('./models/SymbolMapping.js');
+        await initializeSymbolMappingIndexes();
+        logger.info('Symbol mapping indexes initialized');
+
+        // Start price update worker if Twelve Data API key is configured
+        if (config.twelveData.apiKey) {
+            priceUpdateWorker.start();
+            logger.info('Price update worker started');
+        } else {
+            logger.warn('Price update worker not started - TWELVE_DATA_API_KEY not configured');
+        }
+
         app.listen(config.port, () => {
             logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
         });
@@ -117,6 +131,10 @@ const gracefulShutdown = async (signal: string) => {
     logger.info(`${signal} received. Starting graceful shutdown...`);
 
     try {
+        // Stop price update worker
+        priceUpdateWorker.stop();
+        logger.info('Price update worker stopped');
+
         // Close Redis connection
         await closeRedis();
 

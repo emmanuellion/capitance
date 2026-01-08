@@ -101,9 +101,9 @@ async function fetchWithRetry(
 ): Promise<Response> {
     // Get CSRF token if method requires it
     const method = options.method || 'GET';
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string>),
     };
 
     if (csrfManager.requiresCsrf(method)) {
@@ -155,7 +155,7 @@ async function fetchFileWithRetry(
     retryOnCsrf: boolean = true
 ): Promise<Response> {
     // Get CSRF token for file uploads (always POST)
-    const headers: HeadersInit = { ...options.headers };
+    const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
     const csrfToken = await csrfManager.getToken();
     if (csrfToken) {
         headers['X-CSRF-Token'] = csrfToken;
@@ -405,6 +405,28 @@ export interface AnalysisMetrics {
         operationType: string;
     }>;
 }
+
+// Generic API client for real-time endpoints
+export const api = {
+    get: <T = any>(endpoint: string) => {
+        return apiRequest<T>(endpoint, { method: 'GET' }).then(data => ({ data }));
+    },
+    post: <T = any>(endpoint: string, body?: any) => {
+        return apiRequest<T>(endpoint, {
+            method: 'POST',
+            body: body ? JSON.stringify(body) : undefined,
+        }).then(data => ({ data }));
+    },
+    put: <T = any>(endpoint: string, body?: any) => {
+        return apiRequest<T>(endpoint, {
+            method: 'PUT',
+            body: body ? JSON.stringify(body) : undefined,
+        }).then(data => ({ data }));
+    },
+    delete: <T = any>(endpoint: string) => {
+        return apiRequest<T>(endpoint, { method: 'DELETE' }).then(data => ({ data }));
+    },
+};
 
 // Snapshot API methods
 export const snapshotApi = {

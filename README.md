@@ -289,12 +289,41 @@ Résumé :
 2. Implémenter les méthodes `canParse()`, `parse()`, etc.
 3. Enregistrer le parser avec `parserFactory.register()`
 
-### Tests
+### Running Tests
 
+#### Backend
 ```bash
-# TODO: Ajouter les tests unitaires et d'intégration
-npm test
+cd back
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:ui       # Interactive UI
+npm run test:coverage # Coverage report
 ```
+
+#### Frontend
+```bash
+cd front
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+```
+
+## 📚 Documentation
+
+Comprehensive documentation is available:
+
+### Backend Documentation (`back/docs/`)
+- [API Reference](back/docs/API_REFERENCE.md) - Complete API endpoint documentation
+- [Database Schemas](back/docs/DATABASE_SCHEMAS.md) - MongoDB collection structures
+- [Deployment Guide](back/docs/DEPLOYMENT.md) - Production deployment instructions
+- [Real-time Prices](back/docs/REALTIME_PRICES.md) - Real-time price system guide
+- [Parser Architecture](back/PARSER_ARCHITECTURE.md) - CSV parser implementation guide
+- [CSRF Implementation](back/CSRF_IMPLEMENTATION.md) - Security implementation details
+
+### Frontend Documentation (`front/docs/`)
+- [Component Library](front/docs/COMPONENT_LIBRARY.md) - React component documentation
+- [State Management](front/docs/STATE_MANAGEMENT.md) - State management patterns
+- [Testing Guide](front/docs/TESTING_GUIDE.md) - Frontend testing practices
 
 ## 🚢 Déploiement
 

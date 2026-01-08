@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './authRoutes.js';
 import fileRoutes from './fileRoutes.js';
 import snapshotRoutes from './snapshotRoutes.js';
+import realtimePriceRoutes from './realtimePriceRoutes.js';
 
 const router = Router();
 
@@ -9,5 +10,6 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/file', fileRoutes);
 router.use('/snapshots', snapshotRoutes);
+router.use('/realtime', realtimePriceRoutes);
 
 export default router;
