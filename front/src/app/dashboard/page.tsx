@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { snapshotApi, fileApi, ApiError } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, PieChart, Upload, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart, Upload, RefreshCw, Bitcoin } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -198,7 +198,7 @@ export default function DashboardHomePage() {
                     </div>
 
                     {/* Quick Links */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <Link href="/dashboard/overview">
                             <Card className="hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-slate-200 dark:border-slate-700">
                                 <CardHeader>
@@ -242,6 +242,22 @@ export default function DashboardHomePage() {
                                     </CardTitle>
                                     <CardDescription>
                                         Gérez vos imports et snapshots
+                                    </CardDescription>
+                                </CardHeader>
+                            </Card>
+                        </Link>
+
+                        <Link href="/dashboard/binance">
+                            <Card className="hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer border-slate-200 dark:border-slate-700 bg-yellow-50 dark:bg-yellow-950/30">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                                            <Bitcoin className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                                        </div>
+                                        Binance
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Connectez votre portfolio Binance
                                     </CardDescription>
                                 </CardHeader>
                             </Card>

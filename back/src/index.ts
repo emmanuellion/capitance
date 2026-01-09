@@ -17,6 +17,7 @@ import { initializePortfolioSnapshotIndexes } from './models/PortfolioSnapshot.j
 import { closeRedis } from './config/redis.js';
 import logger from './utils/logger.js';
 import priceUpdateWorker from './services/priceUpdateWorker.js';
+import binanceSnapshotScheduler from './services/binanceSnapshotScheduler.js';
 
 // ES Module __dirname workaround
 const __filename = fileURLToPath(import.meta.url);
@@ -107,12 +108,25 @@ async function startServer() {
         await initializeSymbolMappingIndexes();
         logger.info('Symbol mapping indexes initialized');
 
+        // Initialize Binance snapshot indexes
+        const { initializeBinanceSnapshotIndexes } = await import('./models/BinanceSnapshot.js');
+        await initializeBinanceSnapshotIndexes();
+        logger.info('Binance snapshot indexes initialized');
+
         // Start price update worker if Twelve Data API key is configured
         if (config.twelveData.apiKey) {
             priceUpdateWorker.start();
             logger.info('Price update worker started');
         } else {
             logger.warn('Price update worker not started - TWELVE_DATA_API_KEY not configured');
+        }
+
+        // Start Binance snapshot scheduler if encryption key is configured
+        if (config.binance.encryptionKey) {
+            binanceSnapshotScheduler.start();
+            logger.info('Binance snapshot scheduler started');
+        } else {
+            logger.warn('Binance snapshot scheduler not started - BINANCE_ENCRYPTION_KEY not configured');
         }
 
         app.listen(config.port, () => {
@@ -134,6 +148,10 @@ const gracefulShutdown = async (signal: string) => {
         // Stop price update worker
         priceUpdateWorker.stop();
         logger.info('Price update worker stopped');
+
+        // Stop Binance snapshot scheduler
+        binanceSnapshotScheduler.stop();
+        logger.info('Binance snapshot scheduler stopped');
 
         // Close Redis connection
         await closeRedis();

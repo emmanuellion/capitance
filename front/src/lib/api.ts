@@ -428,6 +428,139 @@ export const api = {
     },
 };
 
+// ==================== Binance Types ====================
+
+export interface BinanceAsset {
+    asset: string;
+    quantityNow: number;
+    priceUSDT: number | null;
+    valueUSDT: number | null;
+    valueEUR: number | null;
+    tradeQtyBasis: number;
+    tradeCostUSDT: number;
+    avgCostUSDT: number | null;
+    pnlUSDT: number | null;
+    pnlEUR: number | null;
+    depositQtyObserved: number;
+    note: string;
+}
+
+export interface BinancePnL {
+    assets: BinanceAsset[];
+    pnlTotals: {
+        pnlUSDT: number;
+        pnlEUR: number | null;
+    };
+    warnings?: any[];
+}
+
+export interface BinancePortfolioData {
+    ok: boolean;
+    totals: {
+        usdt: number;
+        eur: number | null;
+        usdtToEurRate: number | null;
+    };
+    assets: BinanceAsset[];
+    pnl: BinancePnL;
+    meta: {
+        computedAt: string;
+        recvWindow: number;
+        scannedSymbolsWithTrades: number;
+        scannedSymbolsTotal: number;
+        concurrency: number;
+    };
+    warnings?: any[];
+}
+
+export interface BinanceSnapshotSummary {
+    _id: string;
+    snapshotDate: Date;
+    totalValueUSDT: number;
+    totalValueEUR: number | null;
+    totalPnlUSDT: number;
+    totalPnlEUR: number | null;
+    assetCount: number;
+    createdAt: Date;
+}
+
+export interface BinanceTimelineEntry {
+    date: Date;
+    totalValueUSDT: number;
+    totalValueEUR: number | null;
+    totalPnlUSDT: number;
+}
+
+// ==================== Binance API ====================
+
+export const binanceApi = {
+    // Set or update Binance API keys
+    setApiKeys: (apiKey: string, apiSecret: string) =>
+        apiRequest<{ maskedApiKey: string; configuredAt: Date }>('/api/binance/api-keys', {
+            method: 'POST',
+            body: JSON.stringify({ apiKey, apiSecret }),
+        }),
+
+    // Delete Binance API keys
+    deleteApiKeys: () =>
+        apiRequest('/api/binance/api-keys', {
+            method: 'DELETE',
+        }),
+
+    // Check if API keys are configured
+    getKeysStatus: () =>
+        apiRequest<{ configured: boolean; configuredAt: Date | null }>('/api/binance/keys-status'),
+
+    // Fetch current portfolio
+    getPortfolio: () =>
+        apiRequest<BinancePortfolioData>('/api/binance/portfolio'),
+
+    // Get list of snapshots
+    getSnapshots: (params?: {
+        startDate?: Date;
+        endDate?: Date;
+        limit?: number;
+        offset?: number;
+    }) => {
+        const queryParams = new URLSearchParams();
+        if (params?.startDate) queryParams.append('startDate', params.startDate.toISOString());
+        if (params?.endDate) queryParams.append('endDate', params.endDate.toISOString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+        const query = queryParams.toString();
+        return apiRequest<BinanceSnapshotSummary[]>(
+            `/api/binance/snapshots${query ? `?${query}` : ''}`
+        );
+    },
+
+    // Get specific snapshot by ID
+    getSnapshotById: (snapshotId: string) =>
+        apiRequest<any>(`/api/binance/snapshots/${snapshotId}`),
+
+    // Create manual snapshot
+    createSnapshot: () =>
+        apiRequest<{ snapshotId: string; snapshotDate: Date }>('/api/binance/snapshots', {
+            method: 'POST',
+        }),
+
+    // Delete snapshot
+    deleteSnapshot: (snapshotId: string) =>
+        apiRequest(`/api/binance/snapshots/${snapshotId}`, {
+            method: 'DELETE',
+        }),
+
+    // Get timeline
+    getTimeline: (params?: { startDate?: Date; endDate?: Date }) => {
+        const queryParams = new URLSearchParams();
+        if (params?.startDate) queryParams.append('startDate', params.startDate.toISOString());
+        if (params?.endDate) queryParams.append('endDate', params.endDate.toISOString());
+
+        const query = queryParams.toString();
+        return apiRequest<BinanceTimelineEntry[]>(`/api/binance/timeline${query ? `?${query}` : ''}`);
+    },
+};
+
 // Snapshot API methods
 export const snapshotApi = {
     // Get all snapshots with optional filters

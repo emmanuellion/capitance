@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { validateEncryptionKey } from '../utils/encryption.js';
 
 dotenv.config();
 
@@ -43,6 +44,12 @@ interface Config {
         apiKey: string;
         cacheTTL: number;
     };
+    binance: {
+        encryptionKey: string;
+        cacheTTL: number;
+        snapshotTTL: number;
+        dailySnapshotHour: number;
+    };
 }
 
 const config: Config = {
@@ -86,6 +93,12 @@ const config: Config = {
         apiKey: process.env.ALPHA_VANTAGE_API_KEY || '',
         cacheTTL: Number(process.env.ALPHA_VANTAGE_CACHE_TTL) || 300, // 5 minutes
     },
+    binance: {
+        encryptionKey: process.env.BINANCE_ENCRYPTION_KEY || '',
+        cacheTTL: Number(process.env.BINANCE_CACHE_TTL) || 300, // 5 minutes
+        snapshotTTL: Number(process.env.BINANCE_SNAPSHOT_TTL) || 90 * 24 * 60 * 60 * 1000, // 90 days
+        dailySnapshotHour: Number(process.env.BINANCE_DAILY_SNAPSHOT_HOUR) || 0, // 00:00 UTC
+    },
 };
 
 // Validate critical config on startup
@@ -97,6 +110,18 @@ if (!config.jwt.refreshSecret || config.jwt.refreshSecret.length < 32) {
 }
 if (!config.twelveData.apiKey) {
     console.warn('WARNING: TWELVE_DATA_API_KEY is not set. Real-time price updates will not work.');
+}
+
+// Validate Binance encryption key if configured
+if (config.binance.encryptionKey) {
+    try {
+        validateEncryptionKey(config.binance.encryptionKey);
+    } catch (error) {
+        console.error('BINANCE_ENCRYPTION_KEY validation failed:', error instanceof Error ? error.message : error);
+        throw error;
+    }
+} else {
+    console.warn('WARNING: BINANCE_ENCRYPTION_KEY is not set. Binance API key storage will not work.');
 }
 
 export default config;

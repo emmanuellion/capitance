@@ -2,6 +2,8 @@ import { Collection, ObjectId } from 'mongodb';
 import { getDatabase } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { encrypt, decrypt, type EncryptedData } from '../utils/encryption.js';
+import config from '../config/config.js';
 
 export interface User {
     _id?: ObjectId;
@@ -13,6 +15,9 @@ export interface User {
     resetPasswordToken?: string;
     resetPasswordTokenExpiry?: Date;
     refreshTokens: string[]; // Store hashed refresh tokens for revocation
+    binanceApiKey?: EncryptedData; // Encrypted Binance API key
+    binanceApiSecret?: EncryptedData; // Encrypted Binance API secret
+    binanceApiConfiguredAt?: Date; // Timestamp when Binance API was last configured
     createdAt: Date;
     updatedAt: Date;
 }
@@ -37,6 +42,7 @@ export async function initializeUserIndexes(): Promise<void> {
     await collection.createIndex({ email: 1 }, { unique: true });
     await collection.createIndex({ verificationToken: 1 }, { sparse: true });
     await collection.createIndex({ resetPasswordToken: 1 }, { sparse: true });
+    await collection.createIndex({ binanceApiConfiguredAt: 1 }, { sparse: true }); // For finding users with Binance configured
 }
 
 // Password hashing
@@ -228,4 +234,147 @@ export function toUserResponse(user: User): UserResponse {
         isVerified: user.isVerified,
         createdAt: user.createdAt,
     };
+}
+
+// ==================== Binance API Key Management ====================
+
+/**
+ * Update or set Binance API credentials for a user
+ * @param userId User ID
+ * @param apiKey Binance API key (plaintext)
+ * @param apiSecret Binance API secret (plaintext)
+ * @returns true if update successful
+ */
+export async function updateBinanceCredentials(
+    userId: string,
+    apiKey: string,
+    apiSecret: string
+): Promise<boolean> {
+    const collection = getUsersCollection();
+    const encryptionKey = config.binance.encryptionKey;
+
+    if (!encryptionKey) {
+        throw new Error('BINANCE_ENCRYPTION_KEY is not configured');
+    }
+
+    // Encrypt the credentials
+    const encryptedApiKey = encrypt(apiKey, encryptionKey);
+    const encryptedApiSecret = encrypt(apiSecret, encryptionKey);
+
+    const result = await collection.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+            $set: {
+                binanceApiKey: encryptedApiKey,
+                binanceApiSecret: encryptedApiSecret,
+                binanceApiConfiguredAt: new Date(),
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    return result.modifiedCount === 1;
+}
+
+/**
+ * Remove Binance API credentials from a user
+ * @param userId User ID
+ * @returns true if removal successful
+ */
+export async function removeBinanceCredentials(userId: string): Promise<boolean> {
+    const collection = getUsersCollection();
+
+    const result = await collection.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+            $unset: {
+                binanceApiKey: '',
+                binanceApiSecret: '',
+                binanceApiConfiguredAt: '',
+            },
+            $set: {
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    return result.modifiedCount === 1;
+}
+
+/**
+ * Get decrypted Binance API credentials for a user
+ * @param userId User ID
+ * @returns Object with apiKey and apiSecret (plaintext) or null if not configured
+ */
+export async function getBinanceCredentials(
+    userId: string
+): Promise<{ apiKey: string; apiSecret: string } | null> {
+    const collection = getUsersCollection();
+    const encryptionKey = config.binance.encryptionKey;
+
+    if (!encryptionKey) {
+        throw new Error('BINANCE_ENCRYPTION_KEY is not configured');
+    }
+
+    const user = await collection.findOne(
+        { _id: new ObjectId(userId) },
+        { projection: { binanceApiKey: 1, binanceApiSecret: 1 } }
+    );
+
+    if (!user || !user.binanceApiKey || !user.binanceApiSecret) {
+        return null;
+    }
+
+    try {
+        const apiKey = decrypt(
+            user.binanceApiKey.encrypted,
+            user.binanceApiKey.iv,
+            user.binanceApiKey.authTag,
+            encryptionKey
+        );
+
+        const apiSecret = decrypt(
+            user.binanceApiSecret.encrypted,
+            user.binanceApiSecret.iv,
+            user.binanceApiSecret.authTag,
+            encryptionKey
+        );
+
+        return { apiKey, apiSecret };
+    } catch (error) {
+        throw new Error('Failed to decrypt Binance credentials. Please reconfigure your API keys.');
+    }
+}
+
+/**
+ * Check if a user has Binance API keys configured
+ * @param userId User ID
+ * @returns true if API keys are configured
+ */
+export async function hasBinanceApiKeys(userId: string): Promise<boolean> {
+    const collection = getUsersCollection();
+
+    const user = await collection.findOne(
+        { _id: new ObjectId(userId) },
+        { projection: { binanceApiKey: 1 } }
+    );
+
+    return !!(user && user.binanceApiKey);
+}
+
+/**
+ * Get list of all users with Binance API keys configured (for scheduler)
+ * @returns Array of user IDs with Binance configured
+ */
+export async function getUsersWithBinanceConfigured(): Promise<string[]> {
+    const collection = getUsersCollection();
+
+    const users = await collection
+        .find(
+            { binanceApiConfiguredAt: { $exists: true } },
+            { projection: { _id: 1 } }
+        )
+        .toArray();
+
+    return users.map((user) => user._id!.toString());
 }

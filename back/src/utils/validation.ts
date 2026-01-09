@@ -42,6 +42,19 @@ export const validatePassword = (fieldName: string = 'password'): ValidationChai
         .matches(/[0-9]/).withMessage('Password must contain at least one number')
         .matches(/[!@\-#$%^&*(),.?":{}|<>]/).withMessage('Password must contain at least one special character');
 
+// Binance API keys validation
+export const validateBinanceApiKeys = [
+    body('apiKey')
+        .trim()
+        .notEmpty().withMessage('API key is required')
+        .isLength({ min: 20, max: 200 }).withMessage('Invalid API key format'),
+    body('apiSecret')
+        .trim()
+        .notEmpty().withMessage('API secret is required')
+        .isLength({ min: 50, max: 200 }).withMessage('Invalid API secret format'),
+    handleValidationErrors,
+];
+
 // Registration validation
 export const validateRegistration = [
     validateEmail(),
