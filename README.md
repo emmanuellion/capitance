@@ -1,403 +1,353 @@
 # Capitance
 
-**Capitance** est une application web d'analyse et de suivi de portefeuille d'investissement. Elle permet aux investisseurs d'importer des relevés de plusieurs courtiers, d'analyser leurs performances et de visualiser l'évolution de leurs investissements dans le temps.
+Application web de suivi et d'analyse de portefeuille d'investissement. Elle importe des relevés de plusieurs courtiers, se connecte à Binance, enrichit les positions avec des cours en temps réel et suit l'évolution de la valorisation dans le temps.
 
-## 📋 Table des matières
+Projet personnel, développé en TypeScript de bout en bout.
 
-- [Fonctionnalités](#fonctionnalités)
+## Sommaire
+
+- [Aperçu](#aperçu)
 - [Architecture](#architecture)
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Utilisation](#utilisation)
+- [Lancer le projet](#lancer-le-projet)
+- [API](#api)
+- [Formats de relevés supportés](#formats-de-relevés-supportés)
 - [Sécurité](#sécurité)
-- [Développement](#développement)
+- [Tests](#tests)
+- [Scripts disponibles](#scripts-disponibles)
+- [Documentation](#documentation)
 - [Déploiement](#déploiement)
-- [Contribution](#contribution)
-- [License](#license)
+- [État du projet](#état-du-projet)
+- [Licence](#licence)
 
-## ✨ Fonctionnalités
+## Aperçu
 
-### Gestion de portefeuille
-- 📊 **Import multi-courtiers** : Support de Boursobank, Fortuneo, Bourse Direct, Trade Republic, Interactive Brokers, DEGIRO
-- 🔍 **Détection automatique** : Reconnaissance automatique du format de fichier CSV
-- 📈 **Analyse de performance** : Calcul des gains/pertes, rendements, variations intraday
-- 🕐 **Timeline historique** : Suivi de l'évolution du portefeuille dans le temps
-- 💼 **Vue par position** : Détails complets de chaque actif détenu
+### Portefeuille
 
-### Sécurité
-- 🔐 **Authentification JWT** : Avec rotation des tokens refresh
-- 🛡️ **Protection CSRF** : Double Submit Cookie pattern
-- 🔒 **Validation CSV** : Protection contre les injections et fichiers malveillants
-- 📝 **Logs structurés** : Journalisation complète des activités
-- ⚡ **Rate limiting** : Protection contre les abus
+- **Import multi-courtiers** : dépôt d'un export CSV, le format est reconnu automatiquement (score de confiance supérieur à 0,7, sinon le fichier est rejeté).
+- **Snapshots historiques** : chaque import devient un instantané daté, ce qui permet de reconstituer la courbe de valorisation.
+- **Vue par position** : quantité, prix de revient unitaire, cours courant, plus ou moins-value latente.
+- **Mapping de symboles** : table de correspondance ISIN / ticker, pré-remplie puis enrichissable, pour relier une ligne de relevé au bon instrument coté.
 
-### Performance
-- ⚙️ **Cache Redis** : Optimisation des requêtes fréquentes
-- 📦 **Compression** : Gzip/Brotli pour réduire la bande passante
-- 🎯 **Virtualisation** : Tables virtualisées pour grandes listes
+### Cours en temps réel
 
-## 🏗️ Architecture
+Trois fournisseurs sont intégrés, avec cache et rafraîchissement en tâche de fond :
+
+- **Twelve Data** (clé API requise)
+- **Yahoo Finance**
+- **Alpha Vantage**
+
+Les cours sont mis en cache (Redis si activé, mémoire sinon) et un worker les rafraîchit en arrière-plan pour éviter de saturer les quotas des API.
+
+### Intégration Binance
+
+- Connexion du compte via clé API Binance, chiffrée au repos avec `BINANCE_ENCRYPTION_KEY`.
+- Récupération du portefeuille crypto et fusion avec les positions titres.
+- Planificateur de snapshot quotidien (`binanceSnapshotScheduler`), heure configurable.
+
+### Sécurité et performance
+
+- Authentification JWT avec rotation des refresh tokens, cookies `HttpOnly`.
+- Protection CSRF (Double Submit Cookie).
+- Validation stricte des CSV : injection de formules, taille, nombre de lignes et de colonnes.
+- Rate limiting, `helmet`, CORS sur liste blanche d'origines.
+- Compression gzip/brotli, cache Redis optionnel, virtualisation des grandes tables côté front.
+- Logs structurés Winston avec rotation quotidienne.
+
+## Architecture
 
 ```
 capitance/
-├── back/          # Backend API (Node.js + Express + TypeScript)
-├── front/         # Frontend Web (Next.js 16 + React 19 + TypeScript)
-└── desktop/       # Application Desktop (placeholder)
+├── back/       API REST : Node.js 20+, Express 5, TypeScript (ESM), MongoDB
+├── front/      Interface web : Next.js 16 (App Router), React 19, TypeScript
+└── desktop/    Emplacement réservé pour une future application desktop (vide)
 ```
 
-### Stack Technologique
+### Backend (`back/`)
 
-**Backend:**
-- Node.js 20+ avec TypeScript
-- Express.js 5
-- MongoDB (base de données)
-- Redis (cache optionnel)
-- JWT pour l'authentification
-- Winston pour les logs
+```
+src/
+├── config/        configuration, connexions MongoDB et Redis
+├── controllers/   auth, fichiers, snapshots, prix temps réel, Binance
+├── errors/        hiérarchie d'erreurs applicatives (AppError et dérivées)
+├── middleware/    auth, CSRF, upload, sécurité, gestion d'erreurs
+├── models/        accès MongoDB (User, PortfolioSnapshot, BinanceSnapshot,
+│                  SymbolMapping, Upload) et création des index
+├── routes/        routes legacy (/api) et versionnées (/api/v1)
+├── services/
+│   └── parsers/   un parser par courtier, détecteur de format, factory
+├── types/         types partagés (parser, snapshot)
+└── utils/         JWT, chiffrement, logger, validation, dates, nombres
+```
 
-**Frontend:**
-- Next.js 16 (App Router)
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- TanStack Query (React Query)
-- Chart.js pour les graphiques
-- Radix UI pour les composants
+Le backend utilise le driver MongoDB natif, sans ORM. Les index sont créés au démarrage.
 
-## 📦 Prérequis
+### Stack
 
-- **Node.js** ≥ 20.x
-- **MongoDB** ≥ 6.0
-- **Redis** ≥ 7.0 (optionnel, recommandé pour la production)
-- **npm** ou **yarn**
+**Backend** : Express 5, driver `mongodb`, `ioredis`, `jsonwebtoken`, `bcryptjs`, `papaparse`, `multer`, `helmet`, `express-rate-limit`, `express-validator`, `winston`, `swagger-ui-express`.
 
-## 🚀 Installation
+**Frontend** : Next.js 16, React 19, Tailwind CSS v4, TanStack Query, Chart.js via `react-chartjs-2`, Radix UI, `react-hook-form` avec Zod, `react-window`, Framer Motion, `lucide-react`.
 
-### 1. Cloner le repository
+**Tests** : Vitest des deux côtés, `mongodb-memory-server` et `redis-mock` côté back, Testing Library et MSW côté front.
+
+## Prérequis
+
+- **Node.js** 20 ou plus : le backend est en ESM et utilise `import.meta.url`
+- **MongoDB** 6.0 ou plus, instance locale ou Atlas
+- **Redis** 7 ou plus, optionnel en développement, recommandé en production
+- Une clé API **Twelve Data** pour les cours temps réel ; l'offre gratuite suffit pour développer
+
+## Installation
 
 ```bash
-git clone https://github.com/votre-username/capitance.git
+git clone https://github.com/emmanuellion/capitance.git
 cd capitance
+
+cd back && npm install
+cd ../front && npm install
 ```
 
-### 2. Installer les dépendances
+> **À savoir** : `express` est actuellement déclaré dans les `devDependencies` du backend. Une installation de production avec `npm ci --omit=dev` ne l'installera pas.
+
+## Configuration
+
+### Backend (`back/.env`)
+
+Copier `back/.env.example` et compléter.
+
+| Variable | Rôle | Exemple |
+|---|---|---|
+| `PORT` | Port d'écoute de l'API | `3000` |
+| `NODE_ENV` | `development` active Swagger UI | `development` |
+| `ALLOWED_ORIGINS` | Origines CORS autorisées, séparées par des virgules | `http://localhost:3001` |
+| `MONGODB_URI` | Chaîne de connexion MongoDB | `mongodb://localhost:27017/capitance` |
+| `REDIS_ENABLED` | Active le cache Redis | `true` |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` | Connexion Redis | `localhost`, `6379` |
+| `REDIS_KEY_PREFIX` | Préfixe des clés | `capitance:` |
+| `REDIS_DEFAULT_TTL` | TTL par défaut, en secondes | `300` |
+| `JWT_ACCESS_SECRET` | Secret des access tokens, 32 caractères minimum | à générer |
+| `JWT_REFRESH_SECRET` | Secret des refresh tokens, 32 caractères minimum | à générer |
+| `JWT_ACCESS_EXPIRY` | Durée de vie d'un access token | `15m` |
+| `JWT_REFRESH_EXPIRY` | Durée de vie d'un refresh token | `7d` |
+| `JWT_REFRESH_EXPIRY_REMEMBER` | Idem avec « se souvenir de moi » | `30d` |
+| `COOKIE_DOMAIN`, `COOKIE_SECURE`, `COOKIE_SAME_SITE` | Cookies d'authentification | `localhost`, `false`, `strict` |
+| `EMAIL_SERVICE` | `console` écrit les mails dans les logs | `console` |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME` | Expéditeur | `noreply@capitance.com` |
+| `FRONTEND_URL` | Base des liens envoyés par mail | `http://localhost:3001` |
+| `MIN_PASSWORD_LENGTH` | Longueur minimale des mots de passe | `8` |
+| `TWELVE_DATA_API_KEY` | Clé API Twelve Data | à renseigner |
+| `TWELVE_DATA_CACHE_TTL` | TTL du cache de cours, en secondes | `120` |
+| `BINANCE_ENCRYPTION_KEY` | Chiffrement des clés API Binance, 64 caractères hexadécimaux | à générer |
+| `BINANCE_CACHE_TTL` | TTL du cache Binance, en secondes | `300` |
+| `BINANCE_SNAPSHOT_TTL` | Rétention des snapshots Binance, en millisecondes | `7776000000` |
+| `BINANCE_DAILY_SNAPSHOT_HOUR` | Heure du snapshot quotidien, de 0 à 23 | `0` |
+
+Générer les secrets :
 
 ```bash
-# Backend
-cd back
-npm install
+# JWT, 32 caractères minimum
+openssl rand -base64 32
 
-# Frontend
-cd ../front
-npm install
+# Clé de chiffrement Binance, 64 caractères hexadécimaux
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 3. Configuration
-
-Créez les fichiers `.env` dans chaque dossier :
-
-#### Backend (`back/.env`)
+### Frontend (`front/.env.local`)
 
 ```env
-# Server
-PORT=3000
-NODE_ENV=development
-
-# Database
-MONGODB_URI=mongodb://localhost:27017/capitance
-
-# JWT Secrets (générer avec: openssl rand -base64 32)
-JWT_ACCESS_SECRET=votre_secret_access_32_caracteres_minimum
-JWT_REFRESH_SECRET=votre_secret_refresh_32_caracteres_minimum
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-JWT_REFRESH_EXPIRY_REMEMBER=30d
-
-# Cookies
-COOKIE_DOMAIN=localhost
-COOKIE_SECURE=false
-COOKIE_SAME_SITE=strict
-
-# Redis (optionnel)
-REDIS_ENABLED=true
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-REDIS_KEY_PREFIX=capitance:
-REDIS_DEFAULT_TTL=300
-
-# Email (actuellement console uniquement)
-EMAIL_SERVICE=console
-EMAIL_FROM=noreply@capitance.com
-EMAIL_FROM_NAME=Capitance
-
-# Frontend URL
-FRONTEND_URL=http://localhost:3001
-
-# Security
-MIN_PASSWORD_LENGTH=8
+# Base de l'API, sans le préfixe de version : le client ajoute /api/v1 lui-même
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-#### Frontend (`front/.env.local`)
+## Lancer le projet
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
-```
+Démarrer MongoDB, et Redis si `REDIS_ENABLED=true`.
 
-### 4. Démarrer les services
-
-#### Démarrer MongoDB
 ```bash
-mongod --dbpath=/path/to/data
-```
-
-#### Démarrer Redis (optionnel)
-```bash
-redis-server
-```
-
-#### Démarrer le backend
-```bash
+# Terminal 1 : API sur le port 3000
 cd back
 npm run dev
-```
 
-#### Démarrer le frontend
-```bash
+# Terminal 2 : interface web sur le port 3001
 cd front
-npm run dev
+npm run dev -- -p 3001
 ```
 
-L'application sera disponible sur :
-- **Frontend** : http://localhost:3001
-- **Backend API** : http://localhost:3000
+> **Le port 3001 n'est pas automatique.** Le script `dev` du frontend est un `next dev` nu, qui prend le port 3000 par défaut, celui du backend. Il faut donc passer `-p 3001` explicitement, sous peine de collision. Les valeurs `FRONTEND_URL` et `ALLOWED_ORIGINS` du backend pointent déjà sur 3001.
 
-## 📖 Utilisation
+Une fois lancé :
 
-### Créer un compte
+| | URL |
+|---|---|
+| Interface web | http://localhost:3001 |
+| API | http://localhost:3000/api/v1 |
+| Documentation Swagger (développement uniquement) | http://localhost:3000/api-docs |
 
-1. Accédez à http://localhost:3001
-2. Cliquez sur "S'inscrire"
-3. Remplissez le formulaire
-4. Vérifiez votre email (en mode développement, le token est affiché dans les logs)
+### Initialiser les correspondances de symboles
 
-### Importer un portefeuille
+```bash
+cd back
+npm run init:mappings
+```
 
-1. Connectez-vous
-2. Allez dans "Fichiers"
-3. Cliquez sur "Importer un fichier CSV"
-4. Sélectionnez votre relevé de courtier
-5. Le système détecte automatiquement le format et analyse le fichier
+Charge en base les correspondances ISIN / ticker prédéfinies (`src/data/predefinedMappings.ts`), nécessaires pour rattacher les lignes de relevé aux instruments cotés.
 
-### Formats supportés
+## API
 
-| Courtier | Format | Notes |
-|----------|--------|-------|
-| **Boursobank** | CSV avec colonnes: name, isin, quantity, buyingPrice, lastPrice, etc. | Format français (`;` séparateur, `,` décimal) |
-| **Fortuneo** | CSV avec colonnes: Libellé, Code ISIN, Quantité, PRU, Cours, Valorisation, etc. | Format français (`;` séparateur, `,` décimal) |
-| **Bourse Direct** | CSV avec colonnes: Valeur, ISIN, Qté, PRU, Cours, Valorisation, etc. | Format français (`;` séparateur, `,` décimal) |
-| **Trade Republic** | CSV avec colonnes: name, isin, shares, averageBuyInPrice, currentPrice, etc. | Format allemand (`,` séparateur, `.` décimal) |
-| **Interactive Brokers** | CSV avec colonnes: Symbol, Description, Quantity, MarketPrice, CostBasis, etc. | Format US |
-| **DEGIRO** | CSV générique | Détection heuristique |
+L'API est versionnée. Les routes courantes sont sous `/api/v1` :
 
-> 📖 Pour plus de détails sur Fortuneo et Bourse Direct, consultez [FORTUNEO_BOURSE_DIRECT.md](back/FORTUNEO_BOURSE_DIRECT.md)
+| Préfixe | Contenu |
+|---|---|
+| `/api/v1/auth` | inscription, connexion, rafraîchissement de token, vérification d'email, réinitialisation de mot de passe |
+| `/api/v1/file` | upload et analyse des relevés CSV |
+| `/api/v1/snapshots` | instantanés de portefeuille, historique, positions |
+| `/api/v1/realtime` | cours en temps réel |
+| `/api/v1/binance` | connexion du compte Binance, portefeuille crypto, snapshots |
+| `/api/csrf-token` | récupération du jeton CSRF |
 
-## 🔒 Sécurité
+Les anciennes routes montées directement sur `/api` restent disponibles pour compatibilité et renvoient l'en-tête `X-API-Deprecated: true`. Ne pas les utiliser dans du nouveau code.
+
+Le contrat complet est décrit dans `back/openapi.yaml` et servi par Swagger UI sur `/api-docs` quand `NODE_ENV=development`. Voir aussi [API_REFERENCE.md](back/docs/API_REFERENCE.md).
+
+## Formats de relevés supportés
+
+| Courtier | Séparateur / décimale | Parser |
+|---|---|---|
+| Boursobank | `;` / `,` | `BoursobankSnapshotParser` |
+| Fortuneo | `;` / `,` | `FortuneoParser` |
+| Bourse Direct | `;` / `,` | `BourseDirectParser` |
+| Trade Republic | `,` / `.` | `TradeRepublicParser` |
+| Interactive Brokers | `,` / `.` | `InteractiveBrokersParser` |
+| Autres | détection heuristique | `GenericCSVParser` |
+
+Le `FormatDetector` interroge chaque parser enregistré et retient celui dont le score de confiance dépasse 0,7. En dessous, le fichier est refusé plutôt que mal interprété.
+
+Détails sur Fortuneo et Bourse Direct : [FORTUNEO_BOURSE_DIRECT.md](back/FORTUNEO_BOURSE_DIRECT.md).
+Ajouter un courtier : [PARSER_ARCHITECTURE.md](back/PARSER_ARCHITECTURE.md).
+
+## Sécurité
 
 ### Authentification
 
-- **JWT avec rotation** : Les access tokens expirent après 15 minutes, les refresh tokens après 7 jours (30 jours avec "Se souvenir de moi")
-- **HttpOnly cookies** : Protection contre le vol de tokens via XSS
-- **Révocation de tokens** : Déconnexion de tous les appareils disponible
+Access token de 15 minutes, refresh token de 7 jours (30 avec « se souvenir de moi »), rotation à chaque rafraîchissement. Les jetons transitent par des cookies `HttpOnly`, ce qui les met hors de portée d'un XSS. La déconnexion de tous les appareils révoque les refresh tokens.
 
-### Protection CSRF
+### CSRF
 
-L'application utilise le pattern **Double Submit Cookie** :
-- Token CSRF dans un cookie HttpOnly
-- Token CSRF dans le header `X-CSRF-Token` des requêtes
+Pattern Double Submit Cookie : un jeton est posé en cookie sur toutes les requêtes et doit être renvoyé dans l'en-tête `X-CSRF-Token` des requêtes mutantes. Détails : [CSRF_IMPLEMENTATION.md](back/CSRF_IMPLEMENTATION.md).
 
-Voir [CSRF_IMPLEMENTATION.md](back/CSRF_IMPLEMENTATION.md) pour les détails d'implémentation.
+### Import de fichiers
 
-### Validation CSV
+- Détection des injections de formules (cellules commençant par `=`, `+`, `-` ou `@`).
+- Limites : 10 Mo, 10 000 lignes, 50 colonnes.
+- Corps de requête plafonné à 10 Mo.
 
-- **Détection d'injections** : Protection contre les formules Excel/Sheets malveillantes
-- **Limites strictes** : 10MB max, 10,000 lignes max, 50 colonnes max
-- **Validation du contenu** : Vérification de la structure et du format
+### Rate limiting
 
-### Rate Limiting
+5 requêtes par tranche de 15 minutes sur l'authentification, 100 sur le reste de l'API.
 
-- **5 requêtes / 15 min** sur les endpoints d'authentification
-- **100 requêtes / 15 min** sur l'API générale
+### Clés API Binance
 
-## 🛠️ Développement
+Chiffrées avant stockage avec `BINANCE_ENCRYPTION_KEY`. Cette clé ne doit jamais être commitée ni réutilisée entre environnements : la changer rend illisibles les clés déjà enregistrées.
 
-### Structure du projet
-
-```
-back/
-├── src/
-│   ├── config/         # Configuration (DB, Redis, etc.)
-│   ├── controllers/    # Contrôleurs Express
-│   ├── middleware/     # Middleware (auth, CSRF, upload, etc.)
-│   ├── models/         # Modèles MongoDB
-│   ├── routes/         # Routes API
-│   ├── services/       # Logique métier
-│   │   └── parsers/    # Parsers CSV par courtier
-│   ├── types/          # Types TypeScript
-│   ├── utils/          # Utilitaires
-│   └── index.ts        # Point d'entrée
-├── uploads/            # Fichiers uploadés (gitignored)
-└── logs/               # Logs Winston (gitignored)
-
-front/
-├── src/
-│   ├── app/            # Pages Next.js (App Router)
-│   ├── components/     # Composants React
-│   ├── contexts/       # Context API
-│   ├── lib/            # Utilitaires et API client
-│   └── styles/         # CSS global
-└── public/             # Assets statiques
-```
-
-### Scripts disponibles
-
-#### Backend
-```bash
-npm run dev          # Démarrage en mode développement
-npm run build        # Build production
-npm start            # Démarrage production
-npm run lint         # Linting ESLint
-npm run format       # Formatting Prettier
-```
-
-#### Frontend
-```bash
-npm run dev          # Démarrage en mode développement
-npm run build        # Build production
-npm start            # Démarrage production
-npm run lint         # Linting ESLint
-```
-
-### Ajouter un nouveau parser de courtier
-
-Voir [PARSER_ARCHITECTURE.md](back/PARSER_ARCHITECTURE.md) pour un guide complet.
-
-Résumé :
-1. Créer une classe qui étend `BaseSnapshotParser`
-2. Implémenter les méthodes `canParse()`, `parse()`, etc.
-3. Enregistrer le parser avec `parserFactory.register()`
-
-### Running Tests
-
-#### Backend
-```bash
-cd back
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:ui       # Interactive UI
-npm run test:coverage # Coverage report
-```
-
-#### Frontend
-```bash
-cd front
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report
-```
-
-## 📚 Documentation
-
-Comprehensive documentation is available:
-
-### Backend Documentation (`back/docs/`)
-- [API Reference](back/docs/API_REFERENCE.md) - Complete API endpoint documentation
-- [Database Schemas](back/docs/DATABASE_SCHEMAS.md) - MongoDB collection structures
-- [Deployment Guide](back/docs/DEPLOYMENT.md) - Production deployment instructions
-- [Real-time Prices](back/docs/REALTIME_PRICES.md) - Real-time price system guide
-- [Parser Architecture](back/PARSER_ARCHITECTURE.md) - CSV parser implementation guide
-- [CSRF Implementation](back/CSRF_IMPLEMENTATION.md) - Security implementation details
-
-### Frontend Documentation (`front/docs/`)
-- [Component Library](front/docs/COMPONENT_LIBRARY.md) - React component documentation
-- [State Management](front/docs/STATE_MANAGEMENT.md) - State management patterns
-- [Testing Guide](front/docs/TESTING_GUIDE.md) - Frontend testing practices
-
-## 🚢 Déploiement
-
-### Variables d'environnement en production
-
-**Critiques à changer :**
-- `JWT_ACCESS_SECRET` et `JWT_REFRESH_SECRET` : Générer des valeurs cryptographiquement sécurisées
-- `COOKIE_SECURE=true` : Activer pour HTTPS uniquement
-- `MONGODB_URI` : Pointer vers MongoDB de production
-- `REDIS_ENABLED=true` : Activer Redis en production pour les performances
-- `NODE_ENV=production`
-
-### Build
+## Tests
 
 ```bash
-# Backend
-cd back
-npm run build
-
-# Frontend
-cd front
-npm run build
+cd back            # ou cd front
+npm test           # exécution unique
+npm run test:watch # mode watch
+npm run test:ui    # interface Vitest
+npm run test:coverage
 ```
 
-### Docker (Recommandé)
+Le backend teste ses services de cours (Alpha Vantage, Twelve Data, Yahoo Finance) et l'extraction de symboles, avec `mongodb-memory-server` et `redis-mock` pour isoler les dépendances. Le frontend utilise Testing Library et MSW. Voir [TESTING_GUIDE.md](TESTING_GUIDE.md) et [front/docs/TESTING_GUIDE.md](front/docs/TESTING_GUIDE.md).
+
+## Scripts disponibles
+
+### Backend
+
+| Script | Effet |
+|---|---|
+| `npm run dev` | Démarrage avec rechargement à chaud (`tsx watch`) |
+| `npm run build` | Compilation TypeScript vers `dist/` |
+| `npm start` | Exécution de `dist/index.js` |
+| `npm run init:mappings` | Chargement des correspondances de symboles |
+| `npm test` | Vitest |
+| `npm run test:watch`, `test:ui`, `test:coverage` | Variantes Vitest |
+
+ESLint et Prettier sont installés côté backend mais aucun script `lint` ni `format` n'est déclaré ; il faut les appeler via `npx`.
+
+### Frontend
+
+| Script | Effet |
+|---|---|
+| `npm run dev` | Serveur de développement Next.js, ajouter `-- -p 3001` |
+| `npm run build` | Build de production |
+| `npm start` | Serveur de production |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest |
+| `npm run test:watch`, `test:ui`, `test:coverage` | Variantes Vitest |
+
+## Documentation
+
+### Backend
+
+- [API_REFERENCE.md](back/docs/API_REFERENCE.md) : endpoints
+- [DATABASE_SCHEMAS.md](back/docs/DATABASE_SCHEMAS.md) : collections MongoDB
+- [DEPLOYMENT.md](back/docs/DEPLOYMENT.md) : mise en production
+- [REALTIME_PRICES.md](back/docs/REALTIME_PRICES.md) : système de cours temps réel
+- [PARSER_ARCHITECTURE.md](back/PARSER_ARCHITECTURE.md) : ajouter un parser
+- [CSRF_IMPLEMENTATION.md](back/CSRF_IMPLEMENTATION.md) : protection CSRF
+- [FORTUNEO_BOURSE_DIRECT.md](back/FORTUNEO_BOURSE_DIRECT.md) : spécificités de ces deux formats
+
+### Frontend
+
+- [COMPONENT_LIBRARY.md](front/docs/COMPONENT_LIBRARY.md) : composants React
+- [STATE_MANAGEMENT.md](front/docs/STATE_MANAGEMENT.md) : gestion d'état
+- [TESTING_GUIDE.md](front/docs/TESTING_GUIDE.md) : tests frontend
+
+## Déploiement
+
+Guide détaillé : [DEPLOYMENT.md](back/docs/DEPLOYMENT.md).
+
+À changer impérativement en production :
+
+- `JWT_ACCESS_SECRET` et `JWT_REFRESH_SECRET` : valeurs aléatoires distinctes
+- `BINANCE_ENCRYPTION_KEY` : 64 caractères hexadécimaux, propre à l'environnement
+- `COOKIE_SECURE=true` : obligatoire dès que le site est en HTTPS
+- `NODE_ENV=production` : désactive au passage l'exposition de Swagger UI
+- `ALLOWED_ORIGINS` : uniquement le domaine du frontend
+- `REDIS_ENABLED=true` : le cache n'est plus optionnel à l'échelle
 
 ```bash
-# TODO: Ajouter Dockerfile et docker-compose.yml
-docker-compose up -d
+cd back && npm run build
+cd ../front && npm run build
 ```
 
-### Recommandations
+Recommandations : reverse proxy pour le TLS (Nginx ou Caddy), MongoDB avec authentification et sauvegardes, supervision du processus Node, surveillance des logs `back/logs/` (`combined.log`, `error.log`, rotation quotidienne, format JSON).
 
-- Utilisez un reverse proxy (Nginx, Caddy) pour le HTTPS
-- Activez Redis pour le cache
-- Configurez MongoDB avec authentification et réplication
-- Mettez en place un monitoring (ex: PM2, Datadog)
-- Sauvegardez régulièrement MongoDB
+Il n'y a pas encore de `Dockerfile` ni de `docker-compose.yml` dans le dépôt.
 
-## 📊 Monitoring
+## État du projet
 
-Les logs sont stockés dans `back/logs/` :
-- `combined.log` : Tous les logs
-- `error.log` : Erreurs uniquement
-- Rotation quotidienne automatique
+Projet personnel en cours de développement. Points ouverts connus :
 
-Format des logs : JSON structuré avec timestamps.
+- `express` est déclaré dans les `devDependencies` du backend au lieu des `dependencies`
+- Pas de conteneurisation
+- Le dossier `desktop/` est un emplacement réservé, encore vide
+- Pas de script `lint` côté backend
+- Le port du frontend doit être forcé à la main
 
-## 🤝 Contribution
+### Pistes
 
-Les contributions sont les bienvenues ! Veuillez :
-1. Fork le projet
-2. Créer une branche pour votre fonctionnalité
-3. Commit vos changements
-4. Push vers la branche
-5. Ouvrir une Pull Request
+- Conteneurisation et pipeline de déploiement
+- Support de courtiers supplémentaires (DEGIRO, Saxo)
+- Multi-devises et conversion de change
+- Export PDF des rapports
+- Alertes et notifications
+- Comparaison avec des indices de référence
 
-## 📄 License
+## Licence
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## 🆘 Support
-
-Pour toute question ou problème :
-- Ouvrir une issue sur GitHub
-- Consulter la documentation dans `/docs`
-
-## 🗺️ Roadmap
-
-- [ ] Tests unitaires et d'intégration complets
-- [ ] Support de plus de courtiers (Saxo, Degiro avancé, etc.)
-- [ ] Export PDF des rapports
-- [ ] Alertes et notifications
-- [ ] Application mobile
-- [ ] Support multi-devises
-- [ ] Analyse fiscale
-- [ ] Comparaison avec indices de référence
+Aucun fichier `LICENSE` n'est présent dans le dépôt à ce jour. En l'absence de licence explicite, le code reste sous droit d'auteur classique, tous droits réservés. Ajouter un fichier `LICENSE` pour autoriser explicitement la réutilisation.
